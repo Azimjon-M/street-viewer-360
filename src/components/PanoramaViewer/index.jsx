@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import pannellum from 'pannellum';
 import './PanoramaViewer.css';
 
 const PanoramaViewer = ({ sceneData, onSceneChange }) => {
@@ -49,7 +48,14 @@ const PanoramaViewer = ({ sceneData, onSceneChange }) => {
 
         // Initialize viewer
         try {
-            const viewer = pannellum.viewer(viewerRef.current, config);
+            // Check if pannellum is loaded
+            if (!window.pannellum) {
+                console.error('Pannellum library not loaded');
+                setIsLoading(false);
+                return;
+            }
+
+            const viewer = window.pannellum.viewer(viewerRef.current, config);
             pannellumRef.current = viewer;
 
             // Event listeners
