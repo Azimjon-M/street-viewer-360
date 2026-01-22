@@ -1,124 +1,70 @@
-// Sample scene data structure for 360° panoramas
-// Replace these with your actual Insta360 X5 equirectangular images
+import scene1Img from '../assets/panoramas/scene1.jpg';
+import scene2Img from '../assets/panoramas/scene2.jpg';
+import scene3Img from '../assets/panoramas/scene3.jpg';
 
+// Main scenes data
+// x maps to yaw (horizontal), y maps to pitch (vertical)
 export const scenesData = [
     {
-        id: 'scene1',
-        title: 'Bosh manzil',
+        image: scene1Img,
+        title: 'Birinchi manzil',
         description: 'Virtual sayohatning boshlanishi',
-        image: '/panoramas/scene1.jpg', // Replace with your actual image path
-        initialView: {
-            pitch: 0,
-            yaw: 0,
-            hfov: 100
-        },
-        hotspots: [
+        initialImage: true,
+        initialView: { x: 103 },
+        pins: [
             {
-                id: 'hotspot1',
-                type: 'custom',
-                pitch: -5,
-                yaw: 45,
-                cssClass: 'custom-hotspot',
-                createTooltipFunc: (hotSpotDiv) => {
-                    hotSpotDiv.innerHTML = `
-            <div class="hotspot-tooltip">
-              <span>Keyingi manzilga o'tish</span>
-            </div>
-          `;
-                },
-                clickHandlerFunc: () => 'scene2'
+                x: 80,
+                y: 0,
+                z: 0,
+                toImage: scene2Img,
+                title: "Keyingi manzil 2",
+                desc: "Asosiy ko'cha Uylar"
             },
-            {
-                id: 'hotspot2',
-                type: 'custom',
-                pitch: 0,
-                yaw: -90,
-                cssClass: 'custom-hotspot',
-                createTooltipFunc: (hotSpotDiv) => {
-                    hotSpotDiv.innerHTML = `
-            <div class="hotspot-tooltip">
-              <span>Boshqa yo'nalish</span>
-            </div>
-          `;
-                },
-                clickHandlerFunc: () => 'scene3'
-            }
         ]
     },
     {
-        id: 'scene2',
+        image: scene2Img,
         title: 'Ikkinchi manzil',
         description: 'Davom etish',
-        image: '/panoramas/scene2.jpg',
-        initialView: {
-            pitch: 0,
-            yaw: 180,
-            hfov: 100
-        },
-        hotspots: [
+        initialView: { x: 225 },
+        pins: [
             {
-                id: 'hotspot3',
-                type: 'custom',
-                pitch: -3,
-                yaw: 180,
-                cssClass: 'custom-hotspot',
-                createTooltipFunc: (hotSpotDiv) => {
-                    hotSpotDiv.innerHTML = `
-            <div class="hotspot-tooltip">
-              <span>Boshiga qaytish</span>
-            </div>
-          `;
-                },
-                clickHandlerFunc: () => 'scene1'
+                x: -88,
+                y: 0,
+                z: 0,
+                toImage: scene1Img,
+                title: "Ortga 1 manzilga",
+                desc: "Asosiy ko'cha Uylar"
             },
             {
-                id: 'hotspot4',
-                type: 'custom',
-                pitch: 5,
-                yaw: 90,
-                cssClass: 'custom-hotspot',
-                createTooltipFunc: (hotSpotDiv) => {
-                    hotSpotDiv.innerHTML = `
-            <div class="hotspot-tooltip">
-              <span>Uchinchi manzilga</span>
-            </div>
-          `;
-                },
-                clickHandlerFunc: () => 'scene3'
+                x: 90,
+                y: 0,
+                z: 0,
+                toImage: scene3Img,
+                title: "Keyingi manzil 3",
+                desc: "Asosiy ko'cha Karaoke"
             }
         ]
     },
     {
-        id: 'scene3',
+        image: scene3Img,
         title: 'Uchinchi manzil',
         description: 'Oxirgi nuqta',
-        image: '/panoramas/scene3.jpg',
-        initialView: {
-            pitch: 0,
-            yaw: 0,
-            hfov: 100
-        },
-        hotspots: [
+        initialView: { x: 155 },
+        pins: [
             {
-                id: 'hotspot5',
-                type: 'custom',
-                pitch: 0,
-                yaw: -45,
-                cssClass: 'custom-hotspot',
-                createTooltipFunc: (hotSpotDiv) => {
-                    hotSpotDiv.innerHTML = `
-            <div class="hotspot-tooltip">
-              <span>Boshiga qaytish</span>
-            </div>
-          `;
-                },
-                clickHandlerFunc: () => 'scene1'
+                x: -83,
+                y: 0,
+                z: 0,
+                toImage: scene2Img,
+                title: "Ortga 2 manzilga",
+                desc: "Asosiy ko'cha Uylar"
             }
         ]
     }
 ];
 
-// Helper function to get scene by ID
-export const getSceneById = (id) => {
-    return scenesData.find(scene => scene.id === id);
+// Helper to find scene by image object
+export const getSceneByImage = (imageObj) => {
+    return scenesData.find(scene => scene.image === imageObj);
 };

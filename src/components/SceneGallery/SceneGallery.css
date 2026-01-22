@@ -1,0 +1,110 @@
+.scene-gallery-container {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: 80%;
+    max-width: 800px;
+    pointer-events: none;
+    /* Allow clicking through empty space */
+}
+
+.scene-gallery-scroll {
+    display: flex;
+    gap: 16px;
+    padding: 12px;
+    background: rgba(20, 20, 20, 0.4);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    overflow-x: auto;
+    pointer-events: auto;
+    /* Re-enable for the strip itself */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.scene-gallery-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+
+.scene-gallery-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.gallery-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 100px;
+    opacity: 0.7;
+}
+
+.gallery-item:hover {
+    opacity: 1;
+    transform: translateY(-4px);
+}
+
+.gallery-item.active {
+    opacity: 1;
+}
+
+.gallery-thumbnail-wrapper {
+    width: 100px;
+    height: 60px;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.gallery-item.active .gallery-thumbnail-wrapper {
+    border-color: #4f46e5;
+    box-shadow: 0 0 15px rgba(79, 70, 229, 0.4);
+}
+
+.gallery-thumbnail {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.gallery-item:hover .gallery-thumbnail {
+    transform: scale(1.1);
+}
+
+.gallery-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .scene-gallery-container {
+        pointer-events: auto;
+        /* On mobile, blocking click-through is fine usually, easier for hits */
+        width: 100%;
+        bottom: 0;
+        border-radius: 16px 16px 0 0;
+    }
+
+    .scene-gallery-scroll {
+        border-radius: 16px 16px 0 0;
+        background: rgba(10, 10, 15, 0.8);
+        /* Darker on mobile */
+    }
+}
