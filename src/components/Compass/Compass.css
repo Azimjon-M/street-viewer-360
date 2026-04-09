@@ -1,0 +1,105 @@
+.compass-wrapper {
+    position: absolute;
+    /* LanguageDropdown: top=20px, height=44px, gap=10px → 74px */
+    top: calc(var(--spacing-lg, 20px) + 44px + 10px);
+    right: var(--spacing-lg, 20px);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: default;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.compass-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--color-surface-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: box-shadow var(--transition-fast);
+}
+
+.compass-circle:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+/* Igna (needle) konteyner — aylanadi */
+.compass-needle {
+    width: 14px;
+    height: 28px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* CSS transition olib tashlandi: rAF 60fps + delta normalizatsiya yetarli */
+    transform-origin: center center;
+}
+
+/* Qizil = North (yuqori yarmi) */
+.needle-north {
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 14px solid #e53e3e;
+    /* Red */
+    flex-shrink: 0;
+}
+
+/* Kulrang = South (pastki yarmi) */
+.needle-south {
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 14px solid rgba(160, 160, 160, 0.75);
+    flex-shrink: 0;
+}
+
+/* Markaziy nuqta */
+.compass-center-dot {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--color-text-primary, #fff);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.4);
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .compass-circle {
+        width: 40px;
+        height: 40px;
+    }
+
+    .compass-needle {
+        width: 12px;
+        height: 24px;
+    }
+
+    .needle-north {
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-bottom: 12px solid #e53e3e;
+    }
+
+    .needle-south {
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 12px solid rgba(160, 160, 160, 0.75);
+    }
+}

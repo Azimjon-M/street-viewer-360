@@ -1,0 +1,141 @@
+.lang-dropdown-container {
+    position: absolute;
+    top: var(--spacing-lg, 20px);
+    right: var(--spacing-lg, 20px);
+    z-index: 1000;
+    font-family: inherit;
+    font-weight: 500;
+}
+
+.lang-dropdown-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 0.75rem;
+    height: 44px;
+    /* Moslashuvchan balandlik ("i" tugmaga teng) */
+    background: var(--color-surface-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    /* "i" tugmaga monand radius */
+    color: var(--color-text-primary);
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all var(--transition-fast);
+}
+
+.lang-dropdown-btn:hover {
+    background: var(--color-surface-elevated);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.lang-flag-circle {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    flex-shrink: 0;
+}
+
+.lang-label {
+    min-width: 30px;
+    text-align: left;
+    color: var(--color-text-primary);
+}
+
+.lang-chevron {
+    transition: transform 0.2s ease;
+    color: var(--color-text-secondary);
+}
+
+.lang-chevron.open {
+    transform: rotate(180deg);
+}
+
+.lang-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 120px;
+    background: var(--color-surface-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 0.5rem;
+    list-style: none;
+    margin: 0;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    animation: fadeInSlideUp 0.2s ease-out;
+}
+
+.lang-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.5rem;
+    background: transparent;
+    border: none;
+    border-radius: calc(var(--radius-md) - 4px);
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--color-text-primary);
+    font-family: inherit;
+    font-weight: 500;
+    transition: background 0.2s;
+}
+
+.lang-dropdown-item:hover {
+    background: var(--color-bg-primary);
+    /* Use a semi-transparent dark or light hover state */
+}
+
+@keyframes fadeInSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .lang-dropdown-container {
+        top: 10px;
+        right: 10px;
+    }
+
+    .lang-dropdown-btn {
+        height: 40px;
+        /* Biroz ixchamlashtirish */
+        padding: 0 0.5rem;
+    }
+}
+
+/* Telefon Landshaft (Yonbosh) bo'lganda ham xuddi kichik ekranlardagi kabi tepadaroq joylashish */
+@media (max-height: 500px) and (orientation: landscape) {
+    .lang-dropdown-container {
+        top: 10px;
+        right: 10px;
+    }
+
+    .lang-dropdown-btn {
+        height: 40px;
+        padding: 0 0.5rem;
+    }
+}

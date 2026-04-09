@@ -1,24 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import pinIcon from '../../assets/pin.png';
 import './PanoramaViewer.css';
-
-// Simple Icon Components
-const ZoomInIcon = () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        <line x1="11" y1="8" x2="11" y2="14"></line>
-        <line x1="8" y1="11" x2="14" y2="11"></line>
-    </svg>
-);
-
-const ZoomOutIcon = () => (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        <line x1="8" y1="11" x2="14" y2="11"></line>
-    </svg>
-);
 
 const InfoIcon = () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -34,152 +16,238 @@ const FullscreenIcon = () => (
     </svg>
 );
 
-const PanoramaViewer = ({ sceneData, initialYaw, initialHfov, onSceneChange }) => {
+const PanoramaViewer = forwardRef(({ sceneData, allScenes = [], initialYaw, initialPitch, initialHfov, onSceneChange, isLang = 'uz' }, ref) => {
     const wrapperRef = useRef(null);
     const viewerRef = useRef(null);
     const pannellumRef = useRef(null);
+    const onSceneChangeRef = useRef(onSceneChange);
+    const sceneDataRef = useRef(sceneData);
     const [isLoading, setIsLoading] = useState(true);
-    const [isTransitioning, setIsTransitioning] = useState(false);
-    const [isInfoVisible, setIsInfoVisible] = useState(true);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
+    const [loadError, setLoadError] = useState(false);
+    const [isBlurred, setIsBlurred] = useState(false);
+    const [isInfoVisible, setIsInfoVisible] = useState(window.innerWidth > 768);
+    const [pannellumReady, setPannellumReady] = useState(false);
+    const activeSceneIdRef = useRef(null);
+
+    // App.jsx minimap yaw o'qishi uchun live metodlarni tashqariga chiqaramiz
+    useImperativeHandle(ref, () => ({
+        getCurrentYaw: () => pannellumRef.current?.getYaw() ?? 0,
+        getCurrentPitch: () => pannellumRef.current?.getPitch() ?? 0,
+        getCurrentHfov: () => pannellumRef.current?.getHfov() ?? 100,
+        getCurrentNorthOffset: () => sceneDataRef.current?.northOffset || 0,
+    }));
+
+    // Ref orqali callback'larni yangilab turish (stale closure muammosini hal qiladi)
+    useEffect(() => {
+        onSceneChangeRef.current = onSceneChange;
+    }, [onSceneChange]);
 
     useEffect(() => {
-        if (!sceneData || !viewerRef.current) return;
+        sceneDataRef.current = sceneData;
+    }, [sceneData]);
 
-        // Cleanup previous viewer
-        if (pannellumRef.current) {
-            pannellumRef.current.destroy();
+    // Pannellum CDN dan yuklanishini kutish
+    useEffect(() => {
+        if (window.pannellum) {
+            setTimeout(() => setPannellumReady(true), 0);
+            return;
         }
 
-        setIsLoading(true);
+        // Har 100ms da tekshir
+        const checkInterval = setInterval(() => {
+            if (window.pannellum) {
+                setPannellumReady(true);
+                clearInterval(checkInterval);
+            }
+        }, 100);
 
-        // Configure pannellum viewer
+        // 10 soniyadan keyin to'xtat
+        const timeout = setTimeout(() => {
+            clearInterval(checkInterval);
+            if (!window.pannellum) {
+                console.error('Pannellum 10 soniyada yuklanmadi!');
+                setIsLoading(false);
+            }
+        }, 10000);
+
+        return () => {
+            clearInterval(checkInterval);
+            clearTimeout(timeout);
+        };
+    }, []);
+
+    // Scene o'tish funksiyasi
+    const handleSceneTransition = useCallback((targetImage) => {
+        // Blur darhol boshlanadi (CSS 0.8s animatsiyasi bilan silliq)
+        setIsBlurred(true);
+
+        let trueHeading = 0;
+        let currentHfov = 100;
+        let currentPitch = 0;
+
+        if (pannellumRef.current) {
+            const currentYaw = pannellumRef.current.getYaw();
+            const currentNorthOffset = sceneDataRef.current?.northOffset || 0;
+            trueHeading = currentYaw - currentNorthOffset;
+            currentHfov = pannellumRef.current.getHfov();
+            currentPitch = pannellumRef.current.getPitch();
+        }
+
+        // 250ms kutamiz — blur animatsiyasi ko'rinsin, keyin scene o'tadi
+        setTimeout(() => {
+            onSceneChangeRef.current(targetImage, trueHeading, currentHfov, currentPitch);
+        }, 250);
+    }, []); // Bo'sh dependency - ref'lar orqali ishlaydi
+
+    const getLocalizedText = (textObj) => {
+        if (!textObj) return '';
+        if (typeof textObj === 'string') return textObj;
+        return textObj[isLang] || textObj.uz || textObj.ru || textObj.en || '';
+    };
+
+    const getMultiLangHTML = (textObj, tag = 'span') => {
+        if (!textObj) return '';
+        if (typeof textObj === 'string') {
+            return `<${tag} class="lang-text lang-uz">${textObj}</${tag}><${tag} class="lang-text lang-ru">${textObj}</${tag}><${tag} class="lang-text lang-en">${textObj}</${tag}>`;
+        }
+        return `
+            <${tag} class="lang-text lang-uz">${textObj.uz || ''}</${tag}>
+            <${tag} class="lang-text lang-ru">${textObj.ru || textObj.uz || ''}</${tag}>
+            <${tag} class="lang-text lang-en">${textObj.en || textObj.uz || ''}</${tag}>
+        `;
+    };
+
+    useEffect(() => {
+        if (!sceneData || !viewerRef.current || !pannellumReady) return;
+
+        let mounted = true;
+        setTimeout(() => { if (mounted) { setIsLoading(true); setLoadError(false); } }, 0);
+
         const startYaw = initialYaw !== null && initialYaw !== undefined
             ? initialYaw
-            : (sceneData.initialView?.x || 0);
+            : (sceneData.initialScene?.x !== undefined ? sceneData.initialScene.x - 180 : (sceneData.initialView?.x ?? 0));
 
-        const config = {
-            type: 'equirectangular',
-            panorama: sceneData.image,
-            autoLoad: true,
-            pitch: sceneData.initialView?.y || 0, // Support y if present, default 0
-            yaw: startYaw,   // Use calculated start yaw
-            hfov: initialHfov || 100, // Use persisted hfov or default
-            minHfov: 50,
-            maxHfov: 120,
-            showControls: false, // Disable default controls
-            showFullscreenCtrl: false,
-            showZoomCtrl: false,
-            mouseZoom: true,
-            draggable: true,
-            keyboardZoom: true,
-            doubleClickZoom: true,
-            compass: false,
-            hotSpots: sceneData.pins?.map(pin => ({
-                pitch: pin.y,
-                yaw: pin.x + (sceneData.initialView?.x || 0), // Apply scene rotation offset
+        const startPitch = initialPitch !== null && initialPitch !== undefined
+            ? initialPitch
+            : (sceneData.initialScene?.y ?? sceneData.initialView?.y ?? 0);
+
+        const startHfov = initialHfov !== null && initialHfov !== undefined
+            ? initialHfov
+            : 100;
+
+        const rawUrl = typeof sceneData.image === 'string' ? sceneData.image : (sceneData.image?.full || '');
+        const apiBase = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`;
+        // Bazada saqlangan qanday IP bo'lishidan qat'iy nazar joriy apiBase ga almashtirish:
+        const safePanoramaUrl = rawUrl.replace(/http:\/\/[a-zA-Z0-9.-]+:5000/g, apiBase);
+
+        const hotSpots = sceneData.pins?.map(pin => {
+            let p = pin.y;
+            if (p === undefined && pin.yPercent !== undefined) {
+                p = 90 - (parseFloat(pin.yPercent) / 100) * 180;
+            }
+            let y = pin.x;
+            if (y === undefined && pin.xPercent !== undefined) {
+                y = (parseFloat(pin.xPercent) / 100) * 360 - 180;
+            }
+            const iconType = pin.icon || 'pin';
+            return {
+                pitch: p || 0,
+                yaw: y || 0,
                 type: 'custom',
                 cssClass: 'custom-hotspot',
                 createTooltipFunc: (hotSpotDiv) => {
-                    // Inject Pin Icon
-                    const img = document.createElement('img');
-                    img.src = pinIcon;
-                    img.className = 'pin-icon-img';
-                    img.alt = pin.title || 'Navigation Pin';
-                    hotSpotDiv.appendChild(img);
-
-                    // Inject Tooltip
+                    if (iconType === 'circle') {
+                        const circle = document.createElement('div');
+                        circle.className = 'circle-icon-div';
+                        hotSpotDiv.appendChild(circle);
+                    } else {
+                        const img = document.createElement('img');
+                        img.src = pinIcon;
+                        img.className = 'pin-icon-img';
+                        img.alt = pin.title || pin.target || 'Navigation Pin';
+                        hotSpotDiv.appendChild(img);
+                    }
                     const tooltip = document.createElement('div');
                     tooltip.className = 'hotspot-tooltip';
+                    const targetSceneId = pin.target || pin.toImage;
+                    const targetSceneObj = allScenes.find(s => s.id === targetSceneId || s.image === targetSceneId || (s.image && s.image.full === targetSceneId));
+                    const titleData = pin.title || targetSceneObj?.title || targetSceneId || 'Pin';
                     tooltip.innerHTML = `
-                        <h3>${pin.title}</h3>
-                        ${pin.desc ? `<p>${pin.desc}</p>` : ''}
+                        ${getMultiLangHTML(titleData, 'h3')}
+                        ${pin.desc ? getMultiLangHTML(pin.desc, 'p') : ''}
                     `;
                     hotSpotDiv.appendChild(tooltip);
                 },
                 clickHandlerFunc: () => {
-                    if (onSceneChange && pin.toImage) {
-                        handleSceneTransition(pin.toImage);
-                    }
+                    const target = pin.toImage || pin.target;
+                    if (target) handleSceneTransition(target);
                 }
-            })) || []
-        };
+            };
+        }) || [];
 
-        // Initialize viewer
+        // Eski viewerni yo'q qilamiz (blur orqali foydalanuvchi ko'rmaydi)
+        if (pannellumRef.current) {
+            try { pannellumRef.current.destroy(); } catch (e) { /* ignore */ }
+            pannellumRef.current = null;
+        }
+
         try {
-            // Check if pannellum is loaded
-            if (!window.pannellum) {
-                console.error('Pannellum library not loaded');
-                setIsLoading(false);
-                return;
-            }
+            const viewer = window.pannellum.viewer(viewerRef.current, {
+                type: 'equirectangular',
+                panorama: safePanoramaUrl,
+                autoLoad: true,
+                pitch: startPitch,
+                yaw: startYaw,
+                hfov: startHfov,
+                minHfov: 100,
+                maxHfov: 100,
+                showControls: false,
+                showFullscreenCtrl: false,
+                showZoomCtrl: false,
+                mouseZoom: false,
+                draggable: true,
+                keyboardZoom: false,
+                doubleClickZoom: false,
+                compass: false,
+                showContextMenu: false,
+                hotSpots,
+            });
 
-            const viewer = window.pannellum.viewer(viewerRef.current, config);
             pannellumRef.current = viewer;
 
-            // Event listeners
             viewer.on('load', () => {
-                setIsLoading(false);
+                if (mounted) {
+                    setIsLoading(false);
+                    setIsInitialLoad(false);
+                    setIsBlurred(false);
+                }
             });
 
             viewer.on('error', (error) => {
-                console.error('Panorama load error:', error);
-                setIsLoading(false);
+                console.error('Panorama yuklash xatosi:', error);
+                if (mounted) {
+                    setLoadError(true);
+                    setIsLoading(false);
+                }
             });
         } catch (error) {
-            console.error('Pannellum initialization error:', error);
-            setIsLoading(false);
-        }
-
-        // Cleanup on unmount or scene change
-        return () => {
-            if (pannellumRef.current) {
-                pannellumRef.current.destroy();
-                pannellumRef.current = null;
+            console.error('Pannellum ishga tushirish xatosi:', error);
+            if (mounted) {
+                setLoadError(true);
+                setIsLoading(false);
             }
+        }
+
+        return () => {
+            mounted = false;
         };
-    }, [sceneData, initialYaw, initialHfov]);
+    }, [sceneData, initialYaw, initialPitch, initialHfov, pannellumReady, handleSceneTransition, allScenes]);
 
-    const handleSceneTransition = (targetImage) => {
-        setIsTransitioning(true);
 
-        // Calculate current True Heading and HFOV before switching
-        let trueHeading = 0;
-        let currentHfov = 100;
-
-        if (pannellumRef.current) {
-            const currentYaw = pannellumRef.current.getYaw();
-            const currentOffset = sceneData.initialView?.x || 0;
-            trueHeading = currentYaw - currentOffset;
-
-            currentHfov = pannellumRef.current.getHfov();
-        }
-
-        // Smooth transition
-        setTimeout(() => {
-            onSceneChange(targetImage, trueHeading, currentHfov); // Pass trueHeading and HFOV to parent
-            setTimeout(() => {
-                setIsTransitioning(false);
-            }, 300);
-        }, 300);
-    };
-
-    // Custom Control Handlers
-    const handleZoomIn = () => {
-        if (pannellumRef.current) {
-            const currentHfov = pannellumRef.current.getHfov();
-            pannellumRef.current.setHfov(currentHfov - 10);
-        }
-    };
-
-    const handleZoomOut = () => {
-        if (pannellumRef.current) {
-            const currentHfov = pannellumRef.current.getHfov();
-            pannellumRef.current.setHfov(currentHfov + 10);
-        }
-    };
 
     const toggleInfo = () => {
-        setIsInfoVisible(!isInfoVisible);
+        setIsInfoVisible(prev => !prev);
     };
 
     const toggleFullscreen = (e) => {
@@ -188,7 +256,7 @@ const PanoramaViewer = ({ sceneData, initialYaw, initialHfov, onSceneChange }) =
 
         if (!document.fullscreenElement) {
             wrapperRef.current.requestFullscreen().catch(err => {
-                console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                console.error(`Fullscreen xatosi: ${err.message}`);
             });
         } else {
             document.exitFullscreen();
@@ -196,15 +264,9 @@ const PanoramaViewer = ({ sceneData, initialYaw, initialHfov, onSceneChange }) =
     };
 
     return (
-        <div className="panorama-viewer" ref={wrapperRef}>
+        <div className={`panorama-viewer ${isBlurred ? 'is-blurred' : ''}`} ref={wrapperRef} data-lang={isLang}>
             {/* Custom Controls - Top Left */}
             <div className="custom-controls-top-left">
-                <button className="control-btn" onClick={handleZoomIn} title="Zoom In">
-                    <ZoomInIcon />
-                </button>
-                <button className="control-btn" onClick={handleZoomOut} title="Zoom Out">
-                    <ZoomOutIcon />
-                </button>
                 <button className="control-btn" onClick={toggleInfo} title={isInfoVisible ? "Hide Info" : "Show Info"}>
                     <InfoIcon />
                 </button>
@@ -220,8 +282,8 @@ const PanoramaViewer = ({ sceneData, initialYaw, initialHfov, onSceneChange }) =
             {/* Scene Info */}
             {sceneData && !isLoading && isInfoVisible && (
                 <div className="scene-info fade-in">
-                    <h2>{sceneData.title}</h2>
-                    {sceneData.description && <p>{sceneData.description}</p>}
+                    <h2>{getLocalizedText(sceneData.title)}</h2>
+                    {getLocalizedText(sceneData.description) && <p>{getLocalizedText(sceneData.description)}</p>}
                 </div>
             )}
 
@@ -229,21 +291,36 @@ const PanoramaViewer = ({ sceneData, initialYaw, initialHfov, onSceneChange }) =
             <div
                 ref={viewerRef}
                 className="panorama-container"
-                style={{ opacity: isLoading ? 0 : 1, transition: 'opacity 0.5s ease' }}
+                style={{ opacity: (isInitialLoad && isLoading) ? 0 : 1, transition: 'opacity 0.5s ease' }}
+                onContextMenuCapture={(e) => e.stopPropagation()}
+                onMouseDownCapture={(e) => { if (e.button === 2) e.stopPropagation(); }}
+                onPointerDownCapture={(e) => { if (e.button === 2) e.stopPropagation(); }}
             />
 
             {/* Loading State */}
-            {isLoading && (
+            {((isInitialLoad && isLoading) || loadError) && (
                 <div className="panorama-loading">
-                    <div className="loading-spinner"></div>
-                    <div className="loading-text">Panorama yuklanmoqda...</div>
+                    <div className="loading-box">
+                        {loadError ? (
+                            <div className="loading-text error-text">
+                                Rasmni serverdan yuklab bo'lmadi! Tarmoqqa ulanishni tekshiring.
+                            </div>
+                        ) : (
+                            <>
+                                <div className="loading-spinner"></div>
+                                <div className="loading-text">
+                                    Kutib turing ...
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
             )}
 
-            {/* Transition Overlay */}
-            <div className={`scene-transition ${isTransitioning ? 'active' : ''}`} />
+            {/* Faked Transition Blur Background Removed */}
         </div>
     );
-};
+}); // forwardRef tugadi
+
 
 export default PanoramaViewer;

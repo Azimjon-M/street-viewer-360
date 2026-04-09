@@ -2,7 +2,16 @@
     width: 100%;
     height: 100%;
     position: relative;
+    background-color: #000;
 }
+
+/* Pannellum container styling */
+.pnlm-container {
+    width: 100%;
+    height: 100%;
+    background: transparent !important;
+}
+
 
 .panorama-container {
     width: 100%;
@@ -10,50 +19,31 @@
     position: absolute;
     top: 0;
     left: 0;
-}
-
-/* Pannellum container styling */
-.pnlm-container {
-    width: 100%;
-    height: 100%;
-}
-
-/* Custom hotspot styling */
-.custom-hotspot {
-    width: 40px;
-    height: 40px;
     background: transparent;
-    /* Center the pin on the anchor point using margins */
-    margin-left: -20px;
-    /* Half of width 40px */
-    margin-top: -20px;
-    /* Half of height 40px */
-    /* Remove transform here as it conflicts with Pannellum's positioning */
-    /* Remove old border/shadow/animation */
+}
+
+/* Hide Pannellum Context Menu completely */
+.pnlm-about-msg {
+    display: none !important;
+}
+
+.custom-hotspot {
+    width: 0px;
+    height: 0px;
+    background: transparent;
+    /* Wrapper anchor point has no size, its children will be zero-positioned */
+    margin: 0;
     box-shadow: none;
     animation: none;
 }
 
 .custom-hotspot:hover {
-    /* Add hover effect - transform is safe here if it's adding to the element's style, 
-       but Pannellum sets transform inline. 
-       Actually, if Pannellum sets inline transform, we cannot use transform in CSS class 
-       unless we use !important, which would break positioning.
-       
-       Better approach: simple scale on hover might not work if we can't touch transform.
-       Let's try manipulating the CHILD image size or position instead.
-    */
-    /* resetting transform here would actally break pannellum positioning if !important. 
-       If not !important, it does nothing or sits alongside. 
-       But we can't easily scale the container without affecting positioning transform.
-    */
     z-index: 1001;
-    /* Bring to front on hover */
 }
 
 /* Apply hover effect on the IMAGE inside, not the container */
 .custom-hotspot:hover .pin-icon-img {
-    transform: scale(1.2) translateY(-5px);
+    transform: translateX(-50%) scale(1.2) translateY(-5px);
     transition: transform var(--transition-base);
 }
 
@@ -64,17 +54,29 @@
 
 /* Pin Image styling */
 .pin-icon-img {
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    width: 40px;
+    height: 48px;
+
+    /* Anchor horizontally center, vertically bottom */
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+
     object-fit: contain;
+    object-position: bottom center;
     filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+    transform-origin: bottom center;
 }
 
 /* Hotspot tooltip */
 .hotspot-tooltip {
     position: absolute;
-    bottom: 100%;
-    left: 50%;
+
+    bottom: 55px;
+    /* Stand above the pin naturally */
+    left: 0;
+
     transform: translateX(-50%) translateY(0);
     background: var(--color-surface-glass);
     backdrop-filter: blur(12px);
@@ -94,6 +96,7 @@
 
 .custom-hotspot:hover .hotspot-tooltip {
     opacity: 1;
+    /* Agar hover bo'lganda ham o'zgartirmoqchi bo'lsangiz quyidagi translateY(-10px) ni o'zgartiring */
     transform: translateX(-50%) translateY(-10px);
 }
 
@@ -110,25 +113,46 @@
     margin: 2px 0 0 0;
 }
 
+/* Tooltip multi-language handling */
+.hotspot-tooltip .lang-text {
+    display: none;
+}
+
+.panorama-viewer[data-lang="uz"] .hotspot-tooltip .lang-uz,
+.panorama-viewer[data-lang="ru"] .hotspot-tooltip .lang-ru,
+.panorama-viewer[data-lang="en"] .hotspot-tooltip .lang-en {
+    display: block;
+}
+
 /* Loading state */
 .panorama-loading {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    /* Fully covering */
+}
+
+.loading-box {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-lg);
-    z-index: var(--z-overlay);
+    background: transparent;
 }
 
 .loading-spinner {
-    width: 60px;
-    height: 60px;
-    border: 4px solid var(--color-surface-elevated);
-    border-top-color: var(--color-accent-primary);
-    border-radius: var(--radius-full);
+    width: 50px;
+    height: 50px;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    border-top-color: white;
+    border-radius: 50%;
     animation: spin 1s linear infinite;
 }
 
@@ -139,9 +163,24 @@
 }
 
 .loading-text {
-    color: var(--color-text-secondary);
+    color: white;
     font-size: 16px;
     font-weight: 500;
+}
+
+.error-text {
+    color: #ef4444;
+    /* red */
+    text-align: center;
+    max-width: 300px;
+    line-height: 1.4;
+}
+
+/* Hide Pannellum's built-in garbage boxes */
+.pnlm-load-box,
+.pnlm-lbox,
+.pnlm-error-msg {
+    display: none !important;
 }
 
 /* Scene info overlay */
@@ -181,24 +220,17 @@
     line-height: 1.5;
 }
 
-/* Transition overlay */
-.scene-transition {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: var(--color-bg-primary);
-    z-index: 2000;
-    /* Highest z-index for transition */
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--transition-slow);
+/* Transition overlay / Blur canvas over 0.25s */
+.panorama-container canvas {
+    transition: filter 0.25s ease-in-out, transform 0.25s ease-in-out !important;
+    filter: blur(0px);
+    transform: scale(1);
 }
 
-.scene-transition.active {
-    opacity: 1;
-    pointer-events: auto;
+.panorama-viewer.is-blurred canvas {
+    filter: blur(40px) !important;
+    transform: scale(1.15) !important;
+    /* Qoraygan chetlarni ekrandan tashqariga chiqaradi */
 }
 
 /* Custom Controls */
@@ -209,8 +241,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-sm);
-    z-index: 1000;
-    /* Ensure on top */
+    z-index: 2000;
+    /* Ensure on top absolutely */
     user-select: none;
     -webkit-user-select: none;
 }
@@ -219,7 +251,7 @@
     position: absolute;
     bottom: var(--spacing-lg);
     right: var(--spacing-lg);
-    z-index: 1000;
+    z-index: 2000;
     /* Ensure on top */
     user-select: none;
     -webkit-user-select: none;
@@ -257,31 +289,185 @@
     height: 20px;
 }
 
-/* Mobile responsive */
+/* Planched sizes (1024px): Boshlang'ich kichrayish */
+@media (max-width: 1024px) {
+    .pin-icon-img {
+        width: 36px;
+        height: 43px;
+    }
+
+    .circle-icon-div {
+        width: 28px;
+        height: 28px;
+    }
+
+    .hotspot-tooltip {
+        bottom: 50px;
+    }
+}
+
+/* Mobile sizes (768px): Yanayam kichrayish */
 @media (max-width: 768px) {
     .scene-info {
-        top: var(--spacing-md);
+        top: 70px;
         left: var(--spacing-md);
         right: var(--spacing-md);
         max-width: none;
+        padding: 12px;
+    }
+
+    .scene-info h2 {
+        font-size: 16px;
+        margin-bottom: 2px;
+    }
+
+    .scene-info p {
+        font-size: 13px;
     }
 
     .custom-hotspot {
-        width: 50px;
-        height: 50px;
+        width: 0;
+        height: 0;
+    }
+
+    .pin-icon-img {
+        width: 32px;
+        height: 38px;
+    }
+
+    .circle-icon-div {
+        width: 24px;
+        height: 24px;
+    }
+
+    .hotspot-tooltip {
+        bottom: 45px;
     }
 
     .custom-hotspot::before {
-        font-size: 20px;
+        font-size: 16px;
     }
 
+
     .custom-controls-top-left {
-        top: var(--spacing-md);
-        left: var(--spacing-md);
+        top: 10px;
+        left: 10px;
     }
 
     .custom-controls-bottom-right {
         bottom: var(--spacing-md);
         right: var(--spacing-md);
     }
+}
+
+/* Extra small mobile sizes (425px): Eng kichik holat */
+@media (max-width: 425px) {
+    .pin-icon-img {
+        width: 26px;
+        height: 31px;
+    }
+
+    .circle-icon-div {
+        width: 20px;
+        height: 20px;
+    }
+
+    .hotspot-tooltip {
+        bottom: 38px;
+    }
+
+    .custom-hotspot::before {
+        font-size: 14px;
+    }
+}
+
+/* Landshaft qoidasi: Agar ekran eniga uzun, lekin balandligi kichik bo'lsa (telefonlar yatay/yonbosh holda) */
+@media (max-height: 500px) and (orientation: landscape) {
+    .custom-controls-top-left {
+        top: 10px;
+        left: 10px;
+    }
+}
+
+/* Custom Circle Icon */
+.circle-icon-div {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    /* 6px radius center clear, 10px thickness light-blue fading to 0 */
+    background: radial-gradient(circle at center, transparent 0px, transparent 6px, rgba(14, 165, 233, 0.9) 6px, rgba(14, 165, 233, 0) 16px);
+    position: absolute;
+
+    /* Centralized on exactly 0 mark */
+    left: 0;
+    top: 0;
+
+    transform: translate(-50%, -50%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: transform var(--transition-base);
+}
+
+.custom-hotspot:hover .circle-icon-div {
+    transform: translate(-50%, -50%) scale(1.15) translateY(-2px);
+}
+
+/* Target Crosshair for new pin placement */
+.custom-target-crosshair {
+    width: 0px;
+    height: 0px;
+    margin: 0;
+    pointer-events: none;
+    z-index: 2000;
+}
+
+.target-crosshair-icon {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    /* Center around the 0x0 anchor point */
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -50%);
+}
+
+.target-crosshair-icon .crosshair-vline {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 9px;
+    width: 2px;
+    background: #4ade80;
+    /* bright green */
+    box-shadow: 0 0 6px rgba(0, 0, 0, 1);
+    border-radius: 2px;
+}
+
+.target-crosshair-icon .crosshair-hline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 9px;
+    height: 2px;
+    background: #4ade80;
+    /* bright green */
+    box-shadow: 0 0 6px rgba(0, 0, 0, 1);
+    border-radius: 2px;
+}
+
+.target-crosshair-tooltip {
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }

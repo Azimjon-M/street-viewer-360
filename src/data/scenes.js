@@ -1,6 +1,8 @@
-import scene1Img from '../assets/panoramas/scene1.jpg';
-import scene2Img from '../assets/panoramas/scene2.jpg';
-import scene3Img from '../assets/panoramas/scene3.jpg';
+// Panorama rasmlarini URL sifatida import qilish
+// ?url qo'shish orqali Vite ularni bevosita URL sifatida beradi (inline qilmaydi)
+import scene1Img from '../assets/panoramas/scene1.jpg?url';
+import scene2Img from '../assets/panoramas/scene2.jpg?url';
+import scene3Img from '../assets/panoramas/scene3.jpg?url';
 
 // Main scenes data
 // x maps to yaw (horizontal), y maps to pitch (vertical)
@@ -18,7 +20,8 @@ export const scenesData = [
                 z: 0,
                 toImage: scene2Img,
                 title: "Keyingi manzil 2",
-                desc: "Asosiy ko'cha Uylar"
+                desc: "Asosiy ko'cha Uylar",
+                icon: 'circle'
             },
         ]
     },
@@ -64,7 +67,7 @@ export const scenesData = [
     }
 ];
 
-// Helper to find scene by image object
-export const getSceneByImage = (imageObj) => {
-    return scenesData.find(scene => scene.image === imageObj);
+// Helper to find scene by image URL string
+export const getSceneByImage = (imageUrl) => {
+    return scenesData.find(scene => scene.image === imageUrl);
 };

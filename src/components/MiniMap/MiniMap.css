@@ -1,0 +1,288 @@
+.minimap-wrapper {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    transition: all 0.3s ease;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+}
+
+.minimap-toggle-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: #1f2937;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.minimap-toggle-btn:hover {
+    background: #ffffff;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.minimap-container {
+    width: 250px;
+    max-width: 250px;
+    aspect-ratio: 1 / 1;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #f1f5f9;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    cursor: grab;
+    position: relative;
+    transition: all 0.3s ease;
+    /* Sichqoncha bilan surish uchun scrollbar bekitish */
+    overflow: auto;
+    scrollbar-width: none;
+    /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+}
+
+.minimap-container::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari and Opera */
+}
+
+.minimap-container:active {
+    cursor: grabbing;
+}
+
+/* Kichik ekranlarda default ochiq holati (yopilmagan, lekin expanded emas) ham kichikroq bo'lsin */
+@media (max-width: 768px) {
+    .minimap-container {
+        width: 140px;
+        max-width: 140px;
+    }
+}
+
+@media (max-width: 425px) {
+    .minimap-container {
+        width: 110px;
+        max-width: 110px;
+    }
+}
+
+/* Telefon Landshaft (Yonbosh) bo'lganda juda ko'p joyni egallamasligi uchun */
+@media (max-height: 500px) and (orientation: landscape) {
+    .minimap-container {
+        width: 120px;
+        max-width: 120px;
+    }
+}
+
+/* Expanded/Yiriklashgan holat (agar foydalanuvchi katta qilmoqchi bo'lsa) */
+.minimap-wrapper.expanded .minimap-container {
+    width: 40vw;
+    max-width: 450px;
+    aspect-ratio: var(--map-ratio, 16 / 9);
+    /* Tepadagi tugmalarga tegib ketmasligi uchun dinamik xavfsiz balandlik: 
+       Info btn (60px) + Gap (8px) + Toggle Btn (44px) + Bottom (20px) = qariyb 132px */
+    max-height: calc(100dvh - 140px);
+}
+
+@media (max-width: 1024px) {
+    .minimap-wrapper.expanded .minimap-container {
+        width: 50vw;
+        max-width: 400px;
+    }
+}
+
+@media (max-width: 768px) {
+    .minimap-wrapper.expanded .minimap-container {
+        width: 60vw;
+        max-width: 350px;
+    }
+}
+
+@media (max-width: 425px) {
+    .minimap-wrapper.expanded .minimap-container {
+        width: 85vw;
+        max-width: 100vw;
+    }
+}
+
+/* Telefon Landshaft (Yonbosh) holatda expand bo'lsa maxsus qoida */
+@media (max-height: 500px) and (orientation: landscape) {
+    .minimap-wrapper.expanded .minimap-container {
+        width: 55vw;
+        max-width: 300px;
+    }
+}
+
+/* Ichki kadr (haqiqiy rasm o'lchami) */
+.minimap-content {
+    position: relative;
+    /* Width/Height get applied inline based on API data */
+    display: block;
+}
+
+.minimap-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    user-select: none;
+    pointer-events: none;
+    /* To ensure drag works on container */
+}
+
+/* Marker / Pin */
+.minimap-pin-marker {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    /* Clickable */
+}
+
+.minimap-pin-core {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(14, 165, 233, 0.9);
+    /* Oq/Ko'k pin rangi */
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+}
+
+.minimap-pin-marker:hover .minimap-pin-core,
+.minimap-pin-marker.active .minimap-pin-core {
+    background: #ef4444;
+}
+
+.minimap-pin-pulse {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.5);
+    animation: minimap-pulse 1.5s infinite;
+    z-index: -1;
+    pointer-events: none;
+}
+
+@keyframes minimap-pulse {
+    0% {
+        transform: scale(0.6);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(2.2);
+        opacity: 0;
+    }
+}
+
+/* Module Dropdown */
+.minimap-module-dropdown {
+    position: relative;
+    width: 100%;
+    margin-bottom: 8px;
+    z-index: 1010;
+}
+
+.minimap-module-current {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: #1f2937;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.minimap-module-current:hover {
+    background: #ffffff;
+}
+
+.minimap-module-current svg {
+    transition: transform 0.3s ease;
+}
+
+.minimap-module-current.open svg {
+    transform: rotate(180deg);
+}
+
+.minimap-module-list {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    width: 250px;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    transform: translateY(10px);
+}
+
+.minimap-module-list.open {
+    max-height: 300px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+    overflow-y: auto;
+}
+
+.minimap-module-item {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 14px;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.minimap-module-item:last-child {
+    border-bottom: none;
+}
+
+.minimap-module-item:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.minimap-module-item.active {
+    background: rgba(79, 70, 229, 0.1);
+    color: #4f46e5;
+    font-weight: 600;
+}
