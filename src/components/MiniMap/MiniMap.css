@@ -40,15 +40,15 @@
     max-width: 250px;
     aspect-ratio: 1 / 1;
     border-radius: 12px;
-    overflow: hidden;
+    overflow: auto;
+    overscroll-behavior: contain;
     background: #f1f5f9;
     border: 2px solid rgba(255, 255, 255, 0.5);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     cursor: grab;
     position: relative;
     transition: all 0.3s ease;
-    /* Sichqoncha bilan surish uchun scrollbar bekitish */
-    overflow: auto;
+    /* Scrollbar bekitish */
     scrollbar-width: none;
     /* Firefox */
     -ms-overflow-style: none;
@@ -131,6 +131,7 @@
     position: relative;
     /* Width/Height get applied inline based on API data */
     display: block;
+    overflow: hidden;
 }
 
 .minimap-image {
@@ -282,6 +283,99 @@
 }
 
 .minimap-module-item.active {
+    background: rgba(79, 70, 229, 0.1);
+    color: #4f46e5;
+    font-weight: 600;
+}
+
+/* ─── Floor Dropdown ──────────────────────── */
+.minimap-floor-dropdown {
+    position: relative;
+    z-index: 1010;
+}
+
+.minimap-floor-current {
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: #1f2937;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.2s ease;
+    gap: 4px;
+}
+
+.minimap-floor-current:hover {
+    background: #ffffff;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.minimap-floor-current svg {
+    transition: transform 0.3s ease;
+}
+
+.minimap-floor-current.open svg {
+    transform: rotate(180deg);
+}
+
+.minimap-floor-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 90px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    transform: translateY(-10px);
+}
+
+.minimap-floor-list.open {
+    max-height: 300px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.minimap-floor-item {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 13px;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.minimap-floor-item:last-child {
+    border-bottom: none;
+}
+
+.minimap-floor-item:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.minimap-floor-item.active {
     background: rgba(79, 70, 229, 0.1);
     color: #4f46e5;
     font-weight: 600;

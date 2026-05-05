@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# ESLint output files
+eslint.json
+eslint2.json
+eslint-output.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

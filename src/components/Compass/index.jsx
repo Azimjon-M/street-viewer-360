@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import './Compass.css';
 
-const Compass = ({ getYaw }) => {
+const Compass = ({ getYaw, onReset }) => {
     const [needleRotation, setNeedleRotation] = useState(0);
     const rafRef = useRef(null);
     const accRotationRef = useRef(0); // To'plangan rotatsiya (360° sakrashni oldini oladi)
@@ -35,7 +35,12 @@ const Compass = ({ getYaw }) => {
     }, [getYaw]);
 
     return (
-        <div className="compass-wrapper" title={`${displayDeg}°`}>
+        <div 
+            className="compass-wrapper" 
+            title={`${displayDeg}° (Shimolga qaytish uchun bosing)`}
+            onClick={onReset}
+            style={{ cursor: 'pointer' }}
+        >
             <div className="compass-circle">
                 <div
                     className="compass-needle"

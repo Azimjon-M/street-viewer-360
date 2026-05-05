@@ -17,21 +17,9 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// Response interceptor — 401 bo'lsa logout, URL'larni to'g'irlash
+// Response interceptor — 401 bo'lsa logout
 api.interceptors.response.use(
-    (response) => {
-        if (response.data && typeof response.data === 'object') {
-            try {
-                const str = JSON.stringify(response.data);
-                if (str.includes(':5000')) {
-                    response.data = JSON.parse(
-                        str.replace(/http:\/\/[a-zA-Z0-9.-]+:5000/g, API_BASE)
-                    );
-                }
-            } catch { /* empty */ }
-        }
-        return response;
-    },
+    (response) => response,
     (error) => {
         if (error.response?.status === 401) {
             localStorage.removeItem('sv_token');
@@ -43,6 +31,17 @@ api.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+/**
+ * Helper: relative URL ni to'liq URL ga aylantirish.
+ * Agar URL allaqachon http(s) bilan boshlansa, o'zgartirmaydi.
+ * Agar `/uploads/...` shaklida bo'lsa, API_BASE ni qo'shadi.
+ */
+export const resolveImageUrl = (url) => {
+    if (!url || typeof url !== 'string') return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return `${API_BASE}${url.startsWith('/') ? '' : '/'}${url}`;
+};
 
 // ── Auth ──────────────────────────────────────────────────────────────
 export const authAPI = {
@@ -74,6 +73,8 @@ export const miniMapAPI = {
     get: (slug = 'default') => api.get(`/api/modules/${slug}/minimap`),
     setImage: (slug, data) => api.post(`/api/modules/${slug}/minimap`, data),
     updateScenes: (slug, scenes) => api.patch(`/api/modules/${slug}/minimap`, { scenes }),
+    updateFloors: (slug, floors, defaultFloor) => api.patch(`/api/modules/${slug}/minimap`, { floors, defaultFloor }),
+    update: (slug, data) => api.patch(`/api/modules/${slug}/minimap`, data),
 };
 
 // ── Upload (module-scoped) ───────────────────────────────────────────
@@ -84,6 +85,14 @@ export const uploadAPI = {
         }),
     miniMapImage: (slug, formData) =>
         api.post(`/api/modules/${slug}/upload/minimap-image`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    moduleThumbnail: (slug, formData) =>
+        api.post(`/api/modules/${slug}/upload/module-thumbnail`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    pinAudio: (slug, formData) =>
+        api.post(`/api/modules/${slug}/upload/pin-audio`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
 };

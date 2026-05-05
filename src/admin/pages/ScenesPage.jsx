@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { scenesAPI } from '../services/api';
+import { scenesAPI, resolveImageUrl } from '../services/api';
 
 const ScenesPage = () => {
     const { slug } = useParams();
@@ -110,7 +110,7 @@ const ScenesPage = () => {
                             <div className="scene-card-thumb">
                                 {scene.image?.thumb ? (
                                     <img
-                                        src={scene.image.thumb}
+                                        src={resolveImageUrl(scene.image.thumb)}
                                         alt={scene.title?.uz || scene.id}
                                         onError={(e) => {
                                             e.target.style.display = 'none';

@@ -19,7 +19,7 @@ import SceneFormPage from './admin/pages/SceneFormPage';
 import MiniMapPage from './admin/pages/MiniMapPage';
 import ProtectedRoute from './admin/components/ProtectedRoute';
 
-// ── Homepage: modullar ro'yxatidan birinchi (yoki default) modulga redirect ──
+// ── Homepage: modullar ro'yxatidan birinchi modulga redirect ──
 function HomePage() {
   const navigate = useNavigate();
   const [checked, setChecked] = useState(false);
@@ -29,9 +29,9 @@ function HomePage() {
       .then((res) => {
         const modules = res.data?.data || res.data || [];
         if (modules.length > 0) {
-          // Default moduli yoki birinchi aktiv modulga yo'naltirish
-          const defaultMod = modules.find(m => m.slug === 'default') || modules[0];
-          navigate(`/${defaultMod.slug}`, { replace: true });
+          // Birinchi navbatda 'default' bo'lmagan modulni qidiramiz
+          const targetMod = modules.find(m => m.slug !== 'default') || modules[0];
+          navigate(`/${targetMod.slug}`, { replace: true });
         } else {
           setChecked(true);
         }
@@ -63,7 +63,13 @@ function ViewerApp() {
   const [customYaw, setCustomYaw] = useState(null);
   const [customPitch, setCustomPitch] = useState(null);
   const [customHfov, setCustomHfov] = useState(null);
-  const [isLang, setIsLang] = useState('uz');
+  const [isLang, setIsLang] = useState(() => {
+    return localStorage.getItem('selectedLanguage') || 'uz';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('selectedLanguage', isLang);
+  }, [isLang]);
   const [loading, setLoading] = useState(true);
   const viewerRef = useRef(null);
   const isInitialMount = useRef(true);
@@ -164,6 +170,9 @@ function ViewerApp() {
         setCustomHfov(null);
       }
       setCurrentScene(targetScene);
+    } else {
+      console.error(`Sahnaga o'tishda xato: "${targetValue}" ID li sahna topilmadi!`);
+      alert(`Xatolik: "${targetValue}" ID li sahna mavjud emas yoki o'chirib yuborilgan. Iltimos Admin paneldan minimap sozlamalarini (Default Scene yoki pinlarni) tekshiring.`);
     }
   };
 
@@ -179,11 +188,14 @@ function ViewerApp() {
     <div className="app">
       <LanguageDropdown isLang={isLang} setIsLang={setIsLang} />
 
-      <Compass getYaw={() => {
-        const raw = viewerRef.current?.getCurrentYaw() ?? 0;
-        const northOffset = viewerRef.current?.getCurrentNorthOffset() ?? 0;
-        return raw - northOffset + 180;
-      }} />
+      <Compass 
+        getYaw={() => {
+          const raw = viewerRef.current?.getCurrentYaw() ?? 0;
+          const northOffset = viewerRef.current?.getCurrentNorthOffset() ?? 0;
+          return raw - northOffset + 180;
+        }} 
+        onReset={() => viewerRef.current?.lookAtNorth()}
+      />
 
       <PanoramaViewer
         ref={viewerRef}

@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
-import { scenesAPI, uploadAPI } from '../services/api';
+import { scenesAPI, uploadAPI, resolveImageUrl } from '../services/api';
 import pinIcon from '../../assets/pin.png';
 import '../../components/PanoramaViewer/PanoramaViewer.css';
 
 const LANG_TABS = ['uz', 'ru', 'en'];
 const LANG_LABELS = { uz: '🇺🇿 O\'zbek', ru: '🇷🇺 Русский', en: '🇬🇧 English' };
-const PIN_ICONS = ['pin', 'circle'];
-const API_BASE = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:5000`;
+const PIN_ICONS = [
+    { value: 'pin', label: 'Navigatsiya (Pin)' },
+    { value: 'info', label: 'Ma\'lumot nuqtasi' },
+];
 
 /* ─── Sahna Tanlash Modali ─────────────────────────────────────────────── */
 const ScenePickerModal = ({ onSelect, onClose, currentSceneId, slug }) => {
@@ -40,9 +42,7 @@ const ScenePickerModal = ({ onSelect, onClose, currentSceneId, slug }) => {
 
     const getThumb = (scene) => {
         if (scene.image?.thumb) {
-            return scene.image.thumb.startsWith('http')
-                ? scene.image.thumb
-                : `${API_BASE}/${scene.image.thumb.replace(/^\//, '')}`;
+            return resolveImageUrl(scene.image.thumb);
         }
         return null;
     };
@@ -150,9 +150,9 @@ const emptyForm = {
     lng: '',
     title: { uz: '', ru: '', en: '' },
     description: { uz: '', ru: '', en: '' },
-    image: { full: '', mobile: '', thumb: '' },
+    image: { full: '', mobile: '', thumb: '', preview: '' },
     isInitialScene: false,
-    initialSceneX: 0,
+    initialCameraX: 0,
     pins: [],
 };
 
@@ -506,6 +506,20 @@ const SceneFormPage = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
+    const showErrorTrace = (msg, id) => {
+        setError(msg);
+        if (id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('validation-error-outline');
+                setTimeout(() => el.classList.remove('validation-error-outline'), 3500);
+            }
+        } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
     const imageRef = useRef();
     const [fileNames, setFileNames] = useState({ image: '' });
     const [showOffsetModal, setShowOffsetModal] = useState(false);
@@ -517,7 +531,7 @@ const SceneFormPage = () => {
     const getPreviewUrl = () => {
         const url = form.image.mobile || form.image.full;
         if (!url) return null;
-        return url.startsWith('http') ? url : `${API_BASE}/${url.replace(/^\//, '')}`;
+        return resolveImageUrl(url);
     };
 
     // Edit bo'lsa mavjud ma'lumotlarni yuklash
@@ -533,9 +547,9 @@ const SceneFormPage = () => {
                     lng: data.lng ?? '',
                     title: { uz: data.title?.uz || '', ru: data.title?.ru || '', en: data.title?.en || '' },
                     description: { uz: data.description?.uz || '', ru: data.description?.ru || '', en: data.description?.en || '' },
-                    image: { full: data.image?.full || '', mobile: data.image?.mobile || '', thumb: data.image?.thumb || '' },
+                    image: { full: data.image?.full || '', mobile: data.image?.mobile || '', thumb: data.image?.thumb || '', preview: data.image?.preview || '' },
                     isInitialScene: typeof data.initialScene === 'object' ? true : !!data.initialScene,
-                    initialSceneX: typeof data.initialScene === 'object' && data.initialScene?.x !== undefined ? data.initialScene.x : 0,
+                    initialCameraX: data.initialCameraX !== undefined ? data.initialCameraX : (typeof data.initialScene === 'object' && data.initialScene?.x !== undefined ? data.initialScene.x : 0),
                     pins: data.pins || [],
                 });
             })
@@ -570,12 +584,13 @@ const SceneFormPage = () => {
                 image: {
                     full: urls.full || p.image.full,
                     mobile: urls.mobile || p.image.mobile,
-                    thumb: urls.thumb || p.image.thumb, // server avtomatik qaytaradi
+                    thumb: urls.thumb || p.image.thumb,
+                    preview: urls.preview || p.image.preview,
                 },
             }));
             if (imageRef.current) imageRef.current.value = '';
             setFileNames({ image: '' });
-            setSuccess('✅ Rasm muvaffaqiyatli yuklandi! Barcha o\'lchamlar (Full, Mobile, Thumb) avtorentada yaratildi! 🎉 Endi sahnani saqlashingiz mumkin.');
+            setSuccess('✅ Rasm muvaffaqiyatli yuklandi! Barcha o\'lchamlar (Full, Mobile, Thumb, Preview) avtorentada yaratildi! 🎉 Endi sahnani saqlashingiz mumkin.');
             setTimeout(() => setSuccess(''), 6000);
         } catch (err) {
             setError(err.response?.data?.message || 'Yuklashda xato');
@@ -586,15 +601,24 @@ const SceneFormPage = () => {
 
     // Fayl tanlanganda nom saqlash
     const handleFileChange = (type, e) => {
-        const file = e.target.files[0];
-        setFileNames((p) => ({ ...p, [type]: file ? file.name : '' }));
+        if (e.target.files.length > 0) {
+            setFileNames((p) => ({ ...p, [type]: e.target.files[0].name }));
+            // Fayl tanlanishi bilan yuklashni boshlash
+            setTimeout(() => {
+                handleImageUpload();
+            }, 100);
+        }
     };
 
-    // Pin qo'shish
     const addPin = () => {
         setForm((p) => ({
             ...p,
-            pins: [...p.pins, { xPercent: 50, yPercent: 50, target: '', icon: 'pin' }],
+            pins: [...p.pins, {
+                xPercent: 50, yPercent: 50, target: '', icon: 'pin',
+                title: { uz: '', ru: '', en: '' },
+                description: { uz: '', ru: '', en: '' },
+                audio: { uz: '', ru: '', en: '' },
+            }],
         }));
     };
 
@@ -610,11 +634,10 @@ const SceneFormPage = () => {
         setForm((p) => ({ ...p, pins: p.pins.filter((_, i) => i !== idx) }));
     };
 
-    // Saqlash
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!form.id.trim()) { setError('Sahna ID si majburiy'); return; }
-        if (!form.image.full) { setError('To\'liq panorama rasm URL majburiy'); return; }
+        if (isEdit && !form.id.trim()) { showErrorTrace('Sahna ID si majburiy', 'scene-id-input'); return; }
+        if (!form.image.full) { showErrorTrace('To\'liq panorama rasm URL majburiy. Iltimos asosiy rasm yuklang!', 'scene-image-upload'); return; }
 
         setSaving(true);
         setError('');
@@ -622,15 +645,24 @@ const SceneFormPage = () => {
             ...form,
             lat: form.lat !== '' && form.lat !== null ? parseFloat(form.lat) : null,
             lng: form.lng !== '' && form.lng !== null ? parseFloat(form.lng) : null,
-            northOffset: parseFloat(form.northOffset) || 0,
-            initialScene: form.isInitialScene ? { x: parseFloat(form.initialSceneX) || 0 } : false,
-            // pin.id yuborilmaydi — server generatsiya qiladi
-            pins: form.pins.map((pin) => ({
-                xPercent: parseFloat(pin.xPercent),
-                yPercent: parseFloat(pin.yPercent),
-                target: pin.target,
-                icon: pin.icon,
-            })),
+            initialScene: form.isInitialScene,
+            initialCameraX: Number(form.initialCameraX) || 0,
+            northOffset: Number(form.northOffset) || 0,
+            pins: form.pins.map((pin) => {
+                const base = {
+                    xPercent: parseFloat(pin.xPercent),
+                    yPercent: parseFloat(pin.yPercent),
+                    target: pin.target || '',
+                    icon: pin.icon,
+                };
+                // Info pin uchun qo'shimcha maydonlar
+                if (pin.icon === 'info' || pin.icon === 'circle') {
+                    base.title = pin.title || { uz: '', ru: '', en: '' };
+                    base.description = pin.description || { uz: '', ru: '', en: '' };
+                    base.audio = pin.audio || { uz: '', ru: '', en: '' };
+                }
+                return base;
+            }),
         };
 
         try {
@@ -644,7 +676,7 @@ const SceneFormPage = () => {
             }
         } catch (err) {
             const msg = err.response?.data?.message || err.response?.data?.errors?.join(', ') || 'Saqlashda xato';
-            setError(msg);
+            showErrorTrace(msg);
         } finally {
             setSaving(false);
         }
@@ -678,13 +710,13 @@ const SceneFormPage = () => {
                 isOpen={showInitialXModal}
                 onClose={() => setShowInitialXModal(false)}
                 imageUrl={getPreviewUrl()}
-                initialValue={form.initialSceneX}
-                modalTitle="Boshlang'ich Qarash Nuqtasi (X)"
-                modalDesc="Kadr ilk ochilganda kamera qaysi tomonga (X-o'qi) qarab turishini belgilang."
+                initialValue={form.initialCameraX}
                 onSave={(val) => {
-                    setField('initialSceneX', val);
+                    setField('initialCameraX', val);
                     setShowInitialXModal(false);
                 }}
+                modalTitle="Boshlang'ich Qarash Nuqtasi (X o'qi)"
+                modalDesc="Qizil chiziqni surib sahna ochilgandagi markaziy qismini belgilang."
             />
 
             <PinPlacementModal
@@ -741,17 +773,18 @@ const SceneFormPage = () => {
                     <div className="form-grid-2">
                         <div className="form-field">
                             <label className="form-label">
-                                Sahna ID <span className="required">*</span>
+                                Sahna ID <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>— ixtiyoriy</span>
                             </label>
                             <input
+                                id="scene-id-input"
                                 type="text"
                                 className="form-input"
-                                placeholder="bosh-kirish"
+                                placeholder="Avtomatik yaratiladi (bo'sh qoldiring)"
                                 value={form.id}
                                 onChange={(e) => setField('id', e.target.value.toLowerCase().replace(/\s+/g, '-'))}
                                 disabled={isEdit}
                             />
-                            <p className="form-hint">Kichik harf, tire bilan (o'zgartirib bo'lmaydi)</p>
+                            <p className="form-hint">Bo'sh qoldirilsa avtomatik (scene-1, ...) beriladi. O'zgartirib bo'lmaydi.</p>
                         </div>
                         <div className="form-field">
                             <label className="form-label">North Offset (0–360°)</label>
@@ -790,33 +823,31 @@ const SceneFormPage = () => {
                                 Bu loyihaning boshlang'ich sahnasi (Default Scene)
                             </label>
                         </div>
-                        {form.isInitialScene && (
-                            <div className="form-field" style={{ marginTop: '0.5rem', paddingLeft: '1.5rem', borderLeft: '3px solid var(--color-accent-primary)' }}>
-                                <label className="form-label">Boshlang'ich Qarash Nuqtasi (X o'qi / 0-360°)</label>
-                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    <input
-                                        type="number"
-                                        className="form-input"
-                                        min="0"
-                                        max="360"
-                                        value={form.initialSceneX}
-                                        onChange={(e) => setField('initialSceneX', e.target.value)}
-                                        style={{ flex: 1, maxWidth: '200px' }}
-                                    />
-                                    <button
-                                        type="button"
-                                        className="btn-secondary"
-                                        onClick={() => setShowInitialXModal(true)}
-                                    >
-                                        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                            <path d="M2 12A10 10 0 0 0 15 21.54A10 10 0 0 1 15 2.46A10 10 0 0 0 2 12Z" />
-                                        </svg>
-                                        Xaritada
-                                    </button>
-                                </div>
-                                <p className="form-hint">Sahna yuklanganda kamera qaysi tomonga qarab turishini belgilang.</p>
+                        <div className="form-field" style={{ marginTop: '0.5rem' }}>
+                            <label className="form-label">Boshlang'ich Qarash Nuqtasi (X o'qi / 0-360°)</label>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <input
+                                    type="number"
+                                    className="form-input"
+                                    min="0"
+                                    max="360"
+                                    value={form.initialCameraX}
+                                    onChange={(e) => setField('initialCameraX', e.target.value)}
+                                    style={{ flex: 1, maxWidth: '200px' }}
+                                />
+                                <button
+                                    type="button"
+                                    className="btn-secondary"
+                                    onClick={() => setShowInitialXModal(true)}
+                                >
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                        <path d="M2 12A10 10 0 0 0 15 21.54A10 10 0 0 1 15 2.46A10 10 0 0 0 2 12Z" />
+                                    </svg>
+                                    Xaritada
+                                </button>
                             </div>
-                        )}
+                            <p className="form-hint">Sahna yuklanganda kamera qaysi tomonga qarab turishini belgilang.</p>
+                        </div>
                     </div>
                 </div>
 
@@ -830,51 +861,44 @@ const SceneFormPage = () => {
                         </svg>
                         Rasmlar
                     </h2>
-                    <div className="upload-area">
-                        <div className="upload-fields">
+                    <div id="scene-image-upload" className="upload-area" style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+                        <div className="upload-fields" style={{ flex: 1, marginBottom: 0 }}>
                             {[
-                                { ref: imageRef, label: 'Asosiy Rasm', labelSub: 'Ixtiyoriy o\'lcham', hint: 'To\'liq 360° panorama, server o\'zi uni full, mobile, thumb qilib pachoqlaydi', type: 'image' }
+                                { ref: imageRef, label: 'Asosiy Rasm', labelSub: 'Ixtiyoriy o\'lcham', hint: 'To\'liq 360° panorama, server o\'zi uni full, mobile, thumb, preview qilib pachoqlaydi', type: 'image' }
                             ].map(({ ref, label, labelSub, hint, type }) => (
-                                <div key={type} className="upload-field">
+                                <div key={type} className="upload-field" style={{ marginBottom: 0 }}>
                                     <label className="form-label">
                                         {label} <span className="upload-field-sub">{labelSub}</span>
                                         <span className="required"> *</span>
                                     </label>
-                                    <label className={`file-upload-btn ${fileNames[type] ? 'file-selected' : ''}`}>
-                                        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                                            <polyline points="17 8 12 3 7 8" />
-                                            <line x1="12" y1="3" x2="12" y2="15" />
-                                        </svg>
-                                        {fileNames[type] || 'Fayl tanlash'}
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            ref={ref}
-                                            style={{ display: 'none' }}
-                                            onChange={(e) => handleFileChange(type, e)}
-                                        />
-                                    </label>
-                                    <p className="form-hint">{hint}</p>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                        <label className={`file-upload-btn ${fileNames[type] ? 'file-selected' : ''}`} style={{ opacity: uploading ? 0.6 : 1, cursor: uploading ? 'not-allowed' : 'pointer' }}>
+                                            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                                                <polyline points="17 8 12 3 7 8" />
+                                                <line x1="12" y1="3" x2="12" y2="15" />
+                                            </svg>
+                                            {fileNames[type] || 'Qurilmadan tanlash va yuklash'}
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                ref={ref}
+                                                style={{ display: 'none' }}
+                                                onChange={(e) => handleFileChange(type, e)}
+                                                disabled={uploading}
+                                            />
+                                        </label>
+                                        
+                                        {uploading && (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-primary)', fontWeight: 'bold' }}>
+                                                <div className="admin-spinner-sm" /> Yuklanmoqda...
+                                            </div>
+                                        )}
+                                    </div>
+                                    <p className="form-hint" style={{ marginTop: '8px' }}>{hint}</p>
                                 </div>
                             ))}
                         </div>
-                        <button
-                            type="button"
-                            className="btn-secondary"
-                            onClick={handleImageUpload}
-                            disabled={uploading}
-                        >
-                            {uploading ? (
-                                <><div className="admin-spinner-sm" /> Yuklanmoqda...</>
-                            ) : (
-                                <><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                                    <polyline points="17 8 12 3 7 8" />
-                                    <line x1="12" y1="3" x2="12" y2="15" />
-                                </svg> Serverga Yuklash</>
-                            )}
-                        </button>
                     </div>
 
                     {/* URL Preview */}
@@ -888,7 +912,7 @@ const SceneFormPage = () => {
                                 {form.image[key] ? (
                                     <div className="image-url-preview">
                                         <img
-                                            src={form.image[key]}
+                                            src={resolveImageUrl(form.image[key])}
                                             alt={key}
                                             onError={(e) => { e.target.style.display = 'none'; }}
                                         />
@@ -898,7 +922,7 @@ const SceneFormPage = () => {
                                 <input
                                     type="text"
                                     className="form-input"
-                                    placeholder={`${API_BASE}/uploads/${key}/...`}
+                                    placeholder={`/uploads/${key}/...`}
                                     value={form.image[key]}
                                     onChange={(e) => setNested('image', key, e.target.value)}
                                 />
@@ -959,52 +983,79 @@ const SceneFormPage = () => {
                                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
                                 <circle cx="12" cy="10" r="3" />
                             </svg>
-                            Navigatsiya Pinlari ({form.pins.length})
+                            Pinlar ({form.pins.length})
                         </h2>
                         <button type="button" className="btn-secondary" onClick={addPin}>
                             + Pin Qo'shish
                         </button>
                     </div>
 
-                    {form.pins.length === 0 ? (
+                {form.pins.length === 0 ? (
                         <div className="pins-empty">
-                            <p>Hali pin qo'shilmagan. Boshqa sahna bilan bog'lanish uchun pin qo'shing.</p>
+                            <p>Hali pin qo'shilmagan. Boshqa sahna bilan bog'lanish yoki ma'lumot nuqtasi uchun pin qo'shing.</p>
                         </div>
                     ) : (
                         <div className="pins-list">
-                            {form.pins.map((pin, idx) => (
-                                <div key={idx} className="pin-item">
+                            {form.pins.map((pin, idx) => {
+                                const isInfoPin = pin.icon === 'info' || pin.icon === 'circle';
+                                return (
+                                <div key={idx} className="pin-item" style={isInfoPin ? { borderLeft: '3px solid #0694a2' } : {}}>
                                     <div className="pin-item-num">#{idx + 1}</div>
                                     <div className="pin-item-fields">
+                                        {/* Icon turi */}
                                         <div className="form-field">
-                                            <label className="form-label">Target Sahna ID</label>
-                                            <button
-                                                type="button"
-                                                className="scene-id-picker-btn"
-                                                onClick={() => setScenePickerTargetIdx(idx)}
+                                            <label className="form-label">Turi</label>
+                                            <select
+                                                className="form-input form-select"
+                                                value={pin.icon === 'circle' ? 'info' : pin.icon}
+                                                onChange={(e) => {
+                                                    updatePin(idx, 'icon', e.target.value);
+                                                    // Info ga o'tganda target tozalash
+                                                    if (e.target.value === 'info') {
+                                                        updatePin(idx, 'target', '');
+                                                    }
+                                                }}
                                             >
-                                                {pin.target ? (
-                                                    <>
-                                                        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                                                            <circle cx="12" cy="10" r="3" />
-                                                        </svg>
-                                                        <span className="scene-id-value">{pin.target}</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                                            <circle cx="11" cy="11" r="8" />
-                                                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                                                        </svg>
-                                                        <span className="scene-id-placeholder">Sahna tanlang...</span>
-                                                    </>
-                                                )}
-                                                <svg className="scene-id-chevron" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                                    <polyline points="6 9 12 15 18 9" />
-                                                </svg>
-                                            </button>
+                                                {PIN_ICONS.map((ic) => (
+                                                    <option key={ic.value} value={ic.value}>{ic.label}</option>
+                                                ))}
+                                            </select>
                                         </div>
+
+                                        {/* Target sahna — faqat navigatsiya pinlari uchun */}
+                                        {!isInfoPin && (
+                                            <div className="form-field">
+                                                <label className="form-label">Target Sahna ID</label>
+                                                <button
+                                                    type="button"
+                                                    className="scene-id-picker-btn"
+                                                    onClick={() => setScenePickerTargetIdx(idx)}
+                                                >
+                                                    {pin.target ? (
+                                                        <>
+                                                            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                                                                <circle cx="12" cy="10" r="3" />
+                                                            </svg>
+                                                            <span className="scene-id-value">{pin.target}</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                                                <circle cx="11" cy="11" r="8" />
+                                                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                                            </svg>
+                                                            <span className="scene-id-placeholder">Sahna tanlang...</span>
+                                                        </>
+                                                    )}
+                                                    <svg className="scene-id-chevron" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                                        <polyline points="6 9 12 15 18 9" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {/* Koordinatalar */}
                                         <div className="form-field">
                                             <label className="form-label">X (%) & Y (%)</label>
                                             <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -1041,18 +1092,111 @@ const SceneFormPage = () => {
                                                 </button>
                                             </div>
                                         </div>
-                                        <div className="form-field">
-                                            <label className="form-label">Icon</label>
-                                            <select
-                                                className="form-input form-select"
-                                                value={pin.icon}
-                                                onChange={(e) => updatePin(idx, 'icon', e.target.value)}
-                                            >
-                                                {PIN_ICONS.map((ic) => (
-                                                    <option key={ic} value={ic}>{ic}</option>
+
+                                        {/* ═══ Info Pin qo'shimcha maydonlari ═══ */}
+                                        {isInfoPin && (
+                                            <div style={{ gridColumn: '1 / -1', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px', marginTop: '4px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', color: '#0694a2', fontSize: '0.85rem', fontWeight: 600 }}>
+                                                    <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                                        <circle cx="12" cy="12" r="10" />
+                                                        <line x1="12" y1="16" x2="12" y2="12" />
+                                                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                                                    </svg>
+                                                    Ma'lumot nuqtasi sozlamalari
+                                                </div>
+
+                                                {/* 3 tilda title va description */}
+                                                {LANG_TABS.map((lang) => (
+                                                    <div key={lang} style={{ marginBottom: '8px' }}>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                                            <div className="form-field" style={{ marginBottom: 0 }}>
+                                                                <label className="form-label" style={{ fontSize: '0.75rem' }}>Sarlavha ({LANG_LABELS[lang]})</label>
+                                                                <input
+                                                                    type="text"
+                                                                    className="form-input"
+                                                                    placeholder={`Sarlavha (${lang})`}
+                                                                    value={pin.title?.[lang] || ''}
+                                                                    onChange={(e) => {
+                                                                        const newTitle = { ...(pin.title || { uz: '', ru: '', en: '' }), [lang]: e.target.value };
+                                                                        updatePin(idx, 'title', newTitle);
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <div className="form-field" style={{ marginBottom: 0 }}>
+                                                                <label className="form-label" style={{ fontSize: '0.75rem' }}>Tavsif ({LANG_LABELS[lang]})</label>
+                                                                <input
+                                                                    type="text"
+                                                                    className="form-input"
+                                                                    placeholder={`Tavsif (${lang})`}
+                                                                    value={pin.description?.[lang] || ''}
+                                                                    onChange={(e) => {
+                                                                        const newDesc = { ...(pin.description || { uz: '', ru: '', en: '' }), [lang]: e.target.value };
+                                                                        updatePin(idx, 'description', newDesc);
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Audio yuklash */}
+                                                        <div className="form-field" style={{ marginTop: '4px', marginBottom: 0 }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <label
+                                                                    className={`file-upload-btn ${pin.audio?.[lang] ? 'file-selected' : ''}`}
+                                                                    style={{ fontSize: '0.75rem', padding: '4px 10px', flex: 'none' }}
+                                                                >
+                                                                    <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                                                        <path d="M9 18V5l12-2v13" />
+                                                                        <circle cx="6" cy="18" r="3" />
+                                                                        <circle cx="18" cy="16" r="3" />
+                                                                    </svg>
+                                                                    {pin.audio?.[lang] ? '✓ Audio yuklangan' : `Audio (${lang})`}
+                                                                    <input
+                                                                        type="file"
+                                                                        accept="audio/*"
+                                                                        style={{ display: 'none' }}
+                                                                        onChange={async (e) => {
+                                                                            const file = e.target.files[0];
+                                                                            if (!file) return;
+                                                                            const fd = new FormData();
+                                                                            fd.append(`audio_${lang}`, file);
+                                                                            try {
+                                                                                const res = await uploadAPI.pinAudio(slug, fd);
+                                                                                const urls = res.data.data;
+                                                                                if (urls[lang]) {
+                                                                                    const newAudio = { ...(pin.audio || { uz: '', ru: '', en: '' }), [lang]: urls[lang] };
+                                                                                    updatePin(idx, 'audio', newAudio);
+                                                                                }
+                                                                            } catch (err) {
+                                                                                alert('Audio yuklashda xato: ' + (err.response?.data?.message || err.message));
+                                                                            }
+                                                                            e.target.value = '';
+                                                                        }}
+                                                                    />
+                                                                </label>
+                                                                {pin.audio?.[lang] && (
+                                                                    <>
+                                                                        <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '150px' }}>
+                                                                            {pin.audio[lang].split('/').pop()}
+                                                                        </span>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const newAudio = { ...(pin.audio || { uz: '', ru: '', en: '' }), [lang]: '' };
+                                                                                updatePin(idx, 'audio', newAudio);
+                                                                            }}
+                                                                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px', fontSize: '0.7rem' }}
+                                                                            title="Audio ni o'chirish"
+                                                                        >
+                                                                            ✕
+                                                                        </button>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 ))}
-                                            </select>
-                                        </div>
+                                            </div>
+                                        )}
                                     </div>
                                     <button
                                         type="button"
@@ -1066,7 +1210,8 @@ const SceneFormPage = () => {
                                         </svg>
                                     </button>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

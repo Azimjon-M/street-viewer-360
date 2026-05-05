@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { modulesAPI } from '../services/api';
+import { modulesAPI, resolveImageUrl } from '../services/api';
 
 const ModulesPage = () => {
     const [modules, setModules] = useState([]);
@@ -28,14 +28,15 @@ const ModulesPage = () => {
 
     const handleDelete = async (slug, e) => {
         e.stopPropagation();
-        if (slug === 'default') {
-            alert('Default modulni o\'chirib bo\'lmaydi');
+        if (modules.length <= 1) {
+            alert('Oxirgi modulni o\'chirib bo\'lmaydi. Kamida bitta modul bo\'lishi kerak.');
             return;
         }
         if (window.confirm("Rostdan ham bu modulni o'chirmoqchimisiz? (Faqat bo'sh modullar o'chiriladi)")) {
             try {
                 await modulesAPI.delete(slug);
                 setModules(p => p.filter(m => m.slug !== slug));
+                window.dispatchEvent(new Event('modulesUpdated'));
             } catch (err) {
                 alert(err.response?.data?.message || "O'chirishda xatolik yuz berdi");
             }
@@ -78,7 +79,7 @@ const ModulesPage = () => {
                     <div key={mod.slug} className="scene-card module-card" onClick={() => navigate(`/admin/modules/${mod.slug}/scenes`)}>
                         <div className="scene-card-thumb">
                             {mod.thumbnail ? (
-                                <img src={mod.thumbnail} alt={getModuleName(mod)} />
+                                <img src={resolveImageUrl(mod.thumbnail)} alt={getModuleName(mod)} />
                             ) : (
                                 <div className="scene-card-no-thumb">
                                     <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -102,7 +103,7 @@ const ModulesPage = () => {
                                     e.stopPropagation();
                                     navigate(`/admin/modules/${mod.slug}/minimap`);
                                 }}>Xarita</button>
-                                {mod.slug !== 'default' && (
+                                {modules.length > 1 && (
                                     <button className="btn-sm btn-icon-danger" onClick={(e) => handleDelete(mod.slug, e)}>
                                         <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                                             <line x1="18" y1="6" x2="6" y2="18" />

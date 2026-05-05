@@ -11,13 +11,23 @@ const Sidebar = () => {
     const [modules, setModules] = useState([]);
     const [expandedModule, setExpandedModule] = useState(null);
 
-    useEffect(() => {
+    const fetchModules = () => {
         modulesAPI.getAll()
             .then(res => {
                 const data = res.data?.data || res.data || [];
                 setModules(data);
             })
             .catch(err => console.error("Sidebar modules yuklashda xato:", err));
+    };
+
+    useEffect(() => {
+        fetchModules();
+
+        // Custom event orqali ro'yxatni yangilashni eshitish
+        window.addEventListener('modulesUpdated', fetchModules);
+        return () => {
+            window.removeEventListener('modulesUpdated', fetchModules);
+        };
     }, []);
 
     useEffect(() => {
