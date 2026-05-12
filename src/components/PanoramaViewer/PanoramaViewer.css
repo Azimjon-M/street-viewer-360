@@ -94,9 +94,10 @@
     min-width: 120px;
 }
 
-.custom-hotspot:hover .hotspot-tooltip {
+/* Hover qoidasi faqat navigatsiya pinlari uchun. Info pinlar tap-to-toggle ishlaydi
+   (mobilda sticky :hover bug'i info menyusini berkitishga to'sqinlik qilmasin) */
+.custom-hotspot:not(.info-hotspot):hover .hotspot-tooltip {
     opacity: 1;
-    /* Agar hover bo'lganda ham o'zgartirmoqchi bo'lsangiz quyidagi translateY(-10px) ni o'zgartiring */
     transform: translateX(-50%) translateY(-10px);
 }
 
@@ -235,25 +236,68 @@
     display: none !important;
 }
 
-/* Scene info overlay */
+/* Scene info overlay
+ * JSX da .custom-controls-top-left ichida joylashgan, doim render qilinadi.
+ * Animatsiya: .is-open class orqali — info tugma yonidan/tagidan surilib chiqadi.
+ * Mobile: flex-flow'da (info tugmasi bilan quality tugma o'rtasida) — quality'ni o'zi bilan pastga suradi.
+ * Desktop: absolute (info tugmasi yonida).
+ */
 .scene-info {
-    position: absolute;
-    top: var(--spacing-lg);
-    left: 80px;
-    /* Moved right to avoid overlapping with top-left controls */
+    position: relative;
     background: var(--color-surface-glass);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    padding: var(--spacing-md) var(--spacing-lg);
     border-radius: var(--radius-lg);
     border: 1px solid var(--color-border);
     z-index: 1000;
-    /* High z-index to stay on top in fullscreen */
-    max-width: 300px;
     box-shadow: var(--shadow-lg);
     user-select: none;
-    /* Prevent text selection */
     -webkit-user-select: none;
+    width: min(calc(100vw - 32px), 320px);
+    overflow: hidden;
+    transform-origin: top left;
+    /* Closed state — collapsed; flex gap (8px×2=16px) dan 11px ni qoplaymiz, 5px joy qoladi */
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+    max-height: 0;
+    padding: 0 var(--spacing-lg);
+    border-width: 0;
+    margin: -5.5px 0;
+    pointer-events: none;
+    transition:
+        opacity 0.22s ease,
+        transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+        max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+        padding 0.22s ease,
+        border-width 0.22s ease,
+        margin 0.22s ease;
+}
+
+.scene-info.is-open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    max-height: 400px;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-width: 1px;
+    margin: 0;
+    pointer-events: auto;
+}
+
+/* Desktop: absolute — info tugmasi yonida (flex-flow'dan tashqari) */
+@media (min-width: 769px) {
+    .scene-info {
+        position: absolute;
+        top: 0;
+        left: calc(44px + 16px);
+        width: auto;
+        max-width: 300px;
+        transform-origin: top left;
+        /* Desktop closed: chap tomondan surilib chiqadi */
+        transform: translateX(-8px) scale(0.97);
+    }
+    .scene-info.is-open {
+        transform: translateX(0) scale(1);
+    }
 }
 
 .scene-info h2 {
@@ -291,6 +335,8 @@
     left: var(--spacing-lg);
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
+    /* Tugmalar chap chetga, scene-info kengaysa tugmalarni cho'zmasin */
     gap: var(--spacing-sm);
     z-index: 2000;
     /* Ensure on top absolutely */
@@ -341,6 +387,97 @@
     height: 20px;
 }
 
+/* ─── Quality control dropdown ───────────────────────────────── */
+.quality-control {
+    position: relative;
+    width: 44px;
+}
+
+.quality-control-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 8999;
+}
+
+.quality-control-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 6px;
+    min-width: 170px;
+    background: rgba(20, 20, 30, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+    z-index: 9000;
+    /* Yopiq holat — tugma yonidan surilib chiqadi */
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-8px) scale(0.96);
+    transform-origin: top left;
+    transition:
+        max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.2s ease,
+        transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.quality-control.is-open .quality-control-menu {
+    max-height: 320px;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+}
+
+.quality-control-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: background 0.15s;
+}
+
+.quality-control-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.quality-control-item.active {
+    background: rgba(99, 102, 241, 0.25);
+}
+
+.quality-control-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.quality-control-item-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.quality-control-item-desc {
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-top: 2px;
+}
+
+/* Aktiv tanlov yonidagi yashil galochka */
+.quality-control-item-check {
+    color: #22c55e;
+    flex-shrink: 0;
+    filter: drop-shadow(0 0 4px rgba(34, 197, 94, 0.5));
+}
+
 /* Planched sizes (1024px): Boshlang'ich kichrayish */
 @media (max-width: 1024px) {
     .pin-icon-img {
@@ -361,10 +498,10 @@
 /* Mobile sizes (768px): Yanayam kichrayish */
 @media (max-width: 768px) {
     .scene-info {
-        top: 70px;
-        left: var(--spacing-md);
-        right: var(--spacing-md);
-        max-width: none;
+        /* Mobile width override — pozitsiya va padding yuqoridagi base style'da */
+        width: min(calc(100vw - 24px), 280px);
+    }
+    .scene-info.is-open {
         padding: 12px;
     }
 

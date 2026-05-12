@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
-import { scenesAPI, uploadAPI, resolveImageUrl } from '../services/api';
+import { scenesAPI, uploadAPI, modulesAPI, resolveImageUrl } from '../services/api';
 import pinIcon from '../../assets/pin.png';
 import '../../components/PanoramaViewer/PanoramaViewer.css';
 
@@ -12,21 +12,35 @@ const PIN_ICONS = [
     { value: 'info', label: 'Ma\'lumot nuqtasi' },
 ];
 
-/* ─── Sahna Tanlash Modali ─────────────────────────────────────────────── */
-const ScenePickerModal = ({ onSelect, onClose, currentSceneId, slug }) => {
+/* ─── Sahna Tanlash Modali (cross-module) ─────────────────────────────────────────── */
+const ScenePickerModal = ({ onSelect, onClose, currentSceneId, slug, initialModuleSlug }) => {
     const [allScenes, setAllScenes] = useState([]);
     const [loadingScenes, setLoadingScenes] = useState(true);
     const [search, setSearch] = useState('');
+    const [modules, setModules] = useState([]);
+    const [selectedSlug, setSelectedSlug] = useState(initialModuleSlug || slug);
 
+    // Modullarni bir martagina yuklab olish (dropdown uchun)
     useEffect(() => {
-        scenesAPI.getAll(slug)
+        modulesAPI.getAll()
+            .then((res) => {
+                const data = res.data?.data || res.data || [];
+                setModules(Array.isArray(data) ? data : []);
+            })
+            .catch(() => setModules([]));
+    }, []);
+
+    // Tanlangan modul sahnalarini yuklash
+    useEffect(() => {
+        setLoadingScenes(true);
+        scenesAPI.getAll(selectedSlug)
             .then((res) => {
                 const data = res.data.data || res.data;
                 setAllScenes(Array.isArray(data) ? data : []);
             })
             .catch(() => setAllScenes([]))
             .finally(() => setLoadingScenes(false));
-    }, [slug]);
+    }, [selectedSlug]);
 
     const getTitle = (scene) => {
         if (!scene.title) return '';
@@ -34,8 +48,18 @@ const ScenePickerModal = ({ onSelect, onClose, currentSceneId, slug }) => {
         return scene.title.uz || scene.title.ru || scene.title.en || '';
     };
 
+    const getModuleName = (mod) => {
+        if (!mod) return '';
+        if (!mod.name) return mod.slug;
+        if (typeof mod.name === 'string') return mod.name;
+        return mod.name.uz || mod.name.ru || mod.name.en || mod.slug;
+    };
+
+    const isSameModule = selectedSlug === slug;
+
     const filtered = allScenes.filter((s) => {
-        if (currentSceneId && s.id === currentSceneId) return false;
+        // Faqat o'zining modulida bo'lganida o'zini chiqarib tashlaymiz
+        if (isSameModule && currentSceneId && s.id === currentSceneId) return false;
         return s.id?.toLowerCase().includes(search.toLowerCase()) ||
             getTitle(s).toLowerCase().includes(search.toLowerCase());
     });
@@ -65,6 +89,30 @@ const ScenePickerModal = ({ onSelect, onClose, currentSceneId, slug }) => {
                         </svg>
                     </button>
                 </div>
+
+                {/* Modul tanlash (cross-module pin) */}
+                {modules.length > 1 && (
+                    <div style={{ padding: '0.75rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                        <label style={{ fontSize: '0.78rem', color: 'var(--color-text-secondary)', fontWeight: 600 }}>Modul:</label>
+                        <select
+                            className="form-input form-select"
+                            value={selectedSlug}
+                            onChange={(e) => { setSelectedSlug(e.target.value); setSearch(''); }}
+                            style={{ flex: 1, minWidth: '180px', maxWidth: '320px' }}
+                        >
+                            {modules.map((mod) => (
+                                <option key={mod.slug} value={mod.slug}>
+                                    {mod.slug === slug ? '★ ' : ''}{getModuleName(mod)} ({mod.slug})
+                                </option>
+                            ))}
+                        </select>
+                        {!isSameModule && (
+                            <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 600 }}>
+                                ⚠ Boshqa modul — cross-module pin
+                            </span>
+                        )}
+                    </div>
+                )}
 
                 <div className="scene-picker-search">
                     <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -103,7 +151,7 @@ const ScenePickerModal = ({ onSelect, onClose, currentSceneId, slug }) => {
                                     key={scene.id}
                                     type="button"
                                     className="scene-picker-card"
-                                    onClick={() => onSelect(scene)}
+                                    onClick={() => onSelect(scene, selectedSlug)}
                                 >
                                     <div className="scene-picker-thumb">
                                         {getThumb(scene) ? (
@@ -540,6 +588,11 @@ const SceneFormPage = () => {
         scenesAPI.getOne(slug, sceneId)
             .then((res) => {
                 const data = res.data.data || res.data;
+                // Eski pinlarda targetModule yo'q bo'lsa — default joriy modul slug
+                const normalizedPins = (data.pins || []).map((p) => ({
+                    ...p,
+                    targetModule: p.targetModule || (p.icon === 'info' || p.icon === 'circle' ? '' : slug),
+                }));
                 setForm({
                     id: data.id || '',
                     northOffset: data.northOffset ?? 0,
@@ -550,7 +603,7 @@ const SceneFormPage = () => {
                     image: { full: data.image?.full || '', mobile: data.image?.mobile || '', thumb: data.image?.thumb || '', preview: data.image?.preview || '' },
                     isInitialScene: typeof data.initialScene === 'object' ? true : !!data.initialScene,
                     initialCameraX: data.initialCameraX !== undefined ? data.initialCameraX : (typeof data.initialScene === 'object' && data.initialScene?.x !== undefined ? data.initialScene.x : 0),
-                    pins: data.pins || [],
+                    pins: normalizedPins,
                 });
             })
             .catch(() => setError('Sahna ma\'lumotlarini yuklashda xato'))
@@ -614,7 +667,7 @@ const SceneFormPage = () => {
         setForm((p) => ({
             ...p,
             pins: [...p.pins, {
-                xPercent: 50, yPercent: 50, target: '', icon: 'pin',
+                xPercent: 50, yPercent: 50, target: '', targetModule: slug, icon: 'pin',
                 title: { uz: '', ru: '', en: '' },
                 description: { uz: '', ru: '', en: '' },
                 audio: { uz: '', ru: '', en: '' },
@@ -649,14 +702,17 @@ const SceneFormPage = () => {
             initialCameraX: Number(form.initialCameraX) || 0,
             northOffset: Number(form.northOffset) || 0,
             pins: form.pins.map((pin) => {
+                const isInfoPin = pin.icon === 'info' || pin.icon === 'circle';
                 const base = {
                     xPercent: parseFloat(pin.xPercent),
                     yPercent: parseFloat(pin.yPercent),
                     target: pin.target || '',
                     icon: pin.icon,
+                    // Navigatsiya pin uchun targetModule explicit; info pin uchun '' yuboriladi
+                    targetModule: !isInfoPin ? (pin.targetModule || slug) : '',
                 };
                 // Info pin uchun qo'shimcha maydonlar
-                if (pin.icon === 'info' || pin.icon === 'circle') {
+                if (isInfoPin) {
                     base.title = pin.title || { uz: '', ru: '', en: '' };
                     base.description = pin.description || { uz: '', ru: '', en: '' };
                     base.audio = pin.audio || { uz: '', ru: '', en: '' };
@@ -736,8 +792,19 @@ const SceneFormPage = () => {
             {scenePickerTargetIdx !== null && (
                 <ScenePickerModal
                     slug={slug}
-                    onSelect={(scene) => {
-                        updatePin(scenePickerTargetIdx, 'target', scene.id);
+                    initialModuleSlug={form.pins[scenePickerTargetIdx]?.targetModule || slug}
+                    onSelect={(scene, moduleSlugSel) => {
+                        // Bir hil setForm ichida ikki maydonni ham yangilab qo'yamiz
+                        // (updatePin ketma-ket chaqirilganda stale state muammosi bo'lmasligi uchun)
+                        setForm((p) => {
+                            const pins = [...p.pins];
+                            pins[scenePickerTargetIdx] = {
+                                ...pins[scenePickerTargetIdx],
+                                target: scene.id,
+                                targetModule: moduleSlugSel || slug,
+                            };
+                            return { ...p, pins };
+                        });
                         setScenePickerTargetIdx(null);
                     }}
                     onClose={() => setScenePickerTargetIdx(null)}
@@ -1023,37 +1090,51 @@ const SceneFormPage = () => {
                                         </div>
 
                                         {/* Target sahna — faqat navigatsiya pinlari uchun */}
-                                        {!isInfoPin && (
-                                            <div className="form-field">
-                                                <label className="form-label">Target Sahna ID</label>
-                                                <button
-                                                    type="button"
-                                                    className="scene-id-picker-btn"
-                                                    onClick={() => setScenePickerTargetIdx(idx)}
-                                                >
-                                                    {pin.target ? (
-                                                        <>
-                                                            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                                                                <circle cx="12" cy="10" r="3" />
-                                                            </svg>
-                                                            <span className="scene-id-value">{pin.target}</span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                                                <circle cx="11" cy="11" r="8" />
-                                                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                                                            </svg>
-                                                            <span className="scene-id-placeholder">Sahna tanlang...</span>
-                                                        </>
-                                                    )}
-                                                    <svg className="scene-id-chevron" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                                        <polyline points="6 9 12 15 18 9" />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        )}
+                                        {!isInfoPin && (() => {
+                                            const pinTargetMod = pin.targetModule || slug;
+                                            const isCrossModule = pinTargetMod !== slug;
+                                            return (
+                                                <div className="form-field">
+                                                    <label className="form-label">
+                                                        Target Sahna
+                                                        {isCrossModule && (
+                                                            <span style={{ marginLeft: '0.4rem', fontSize: '0.7rem', color: '#fbbf24', fontWeight: 600 }}>
+                                                                🌐 cross-module
+                                                            </span>
+                                                        )}
+                                                    </label>
+                                                    <button
+                                                        type="button"
+                                                        className="scene-id-picker-btn"
+                                                        onClick={() => setScenePickerTargetIdx(idx)}
+                                                        style={isCrossModule ? { borderColor: 'rgba(251,191,36,0.5)' } : {}}
+                                                    >
+                                                        {pin.target ? (
+                                                            <>
+                                                                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                                                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+                                                                    <circle cx="12" cy="10" r="3" />
+                                                                </svg>
+                                                                <span className="scene-id-value">
+                                                                    {isCrossModule ? `${pinTargetMod} / ${pin.target}` : pin.target}
+                                                                </span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                                                    <circle cx="11" cy="11" r="8" />
+                                                                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                                                </svg>
+                                                                <span className="scene-id-placeholder">Sahna tanlang...</span>
+                                                            </>
+                                                        )}
+                                                        <svg className="scene-id-chevron" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                                            <polyline points="6 9 12 15 18 9" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            );
+                                        })()}
 
                                         {/* Koordinatalar */}
                                         <div className="form-field">

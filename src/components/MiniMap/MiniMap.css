@@ -13,6 +13,13 @@
     -webkit-user-drag: none;
 }
 
+/* Dropdown(lar) ochilganda yoki minimap kengaytirilganda boshqa UI ustida turishi uchun */
+.minimap-wrapper.is-menu-open,
+.minimap-wrapper.expanded,
+.minimap-wrapper:has(.module-switcher.is-open) {
+    z-index: 9000;
+}
+
 .minimap-toggle-btn {
     width: 44px;
     height: 44px;
@@ -197,96 +204,8 @@
     }
 }
 
-/* Module Dropdown */
-.minimap-module-dropdown {
-    position: relative;
-    width: 100%;
-    margin-bottom: 8px;
-    z-index: 1010;
-}
-
-.minimap-module-current {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    color: #1f2937;
-    padding: 8px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: all 0.2s ease;
-}
-
-.minimap-module-current:hover {
-    background: #ffffff;
-}
-
-.minimap-module-current svg {
-    transition: transform 0.3s ease;
-}
-
-.minimap-module-current.open svg {
-    transform: rotate(180deg);
-}
-
-.minimap-module-list {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    width: 250px;
-    margin-bottom: 8px;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(16px);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 12px;
-    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    max-height: 0;
-    opacity: 0;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
-    transform: translateY(10px);
-}
-
-.minimap-module-list.open {
-    max-height: 300px;
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-    overflow-y: auto;
-}
-
-.minimap-module-item {
-    padding: 10px 14px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    cursor: pointer;
-    transition: background 0.2s;
-    font-size: 14px;
-    color: #374151;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.minimap-module-item:last-child {
-    border-bottom: none;
-}
-
-.minimap-module-item:hover {
-    background: rgba(0, 0, 0, 0.05);
-}
-
-.minimap-module-item.active {
-    background: rgba(79, 70, 229, 0.1);
-    color: #4f46e5;
-    font-weight: 600;
-}
+/* Module switcher uchun eski style'lar olib tashlandi —
+   yangi komponent: components/ModuleSwitcher/ModuleSwitcher.css */
 
 /* ─── Floor Dropdown ──────────────────────── */
 .minimap-floor-dropdown {

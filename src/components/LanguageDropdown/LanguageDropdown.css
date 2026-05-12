@@ -7,6 +7,11 @@
     font-weight: 500;
 }
 
+/* Ochilganida boshqa UI elementlari ustida turishi uchun yuqori z-index */
+.lang-dropdown-container.is-open {
+    z-index: 9000;
+}
+
 .lang-dropdown-btn {
     display: flex;
     align-items: center;
@@ -78,7 +83,25 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    animation: fadeInSlideUp 0.2s ease-out;
+    /* Animatsiya: tugma tagidan surilib chiqadi (yopilganda ham silliq) */
+    transform-origin: top right;
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+    pointer-events: none;
+    max-height: 0;
+    overflow: hidden;
+    transition:
+        opacity 0.2s ease,
+        transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+        max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+        padding 0.2s ease;
+}
+
+.lang-dropdown-container.is-open .lang-dropdown-menu {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+    max-height: 320px;
 }
 
 .lang-dropdown-item {
@@ -102,18 +125,6 @@
 .lang-dropdown-item:hover {
     background: var(--color-bg-primary);
     /* Use a semi-transparent dark or light hover state */
-}
-
-@keyframes fadeInSlideUp {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 /* Mobile responsive */

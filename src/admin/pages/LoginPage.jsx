@@ -6,7 +6,7 @@ const LoginPage = () => {
     const { login } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
-    const from = location.state?.from?.pathname || '/admin/scenes';
+    const from = location.state?.from?.pathname || '/admin';
 
     const [form, setForm] = useState({ email: '', password: '' });
     const [error, setError] = useState('');

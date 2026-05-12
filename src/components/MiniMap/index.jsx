@@ -1,15 +1,27 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { miniMapAPI, modulesAPI, resolveImageUrl } from '../../admin/services/api';
+import { miniMapAPI, resolveImageUrl } from '../../admin/services/api';
+import ModuleSwitcher from '../ModuleSwitcher';
 import './MiniMap.css';
 
 const MiniMap = ({ moduleSlug, currentScene, isLang, onSceneSelect }) => {
     const [mapData, setMapData] = useState(null);
-    const [modules, setModules] = useState([]);
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isFloorDropdownOpen, setIsFloorDropdownOpen] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
+    const [moduleSwitcherOpen, setModuleSwitcherOpen] = useState(false);
     const [activeFloor, setActiveFloor] = useState(null);
+
+    // Faqat bittasi bir vaqtda ochiq bo'lsin (Binolar yoki kengaytirilgan minimap)
+    const handleExpandClick = () => {
+        setIsExpanded((prev) => {
+            const next = !prev;
+            if (next) setModuleSwitcherOpen(false); // expand qilinsa Binolar yopiladi
+            return next;
+        });
+    };
+    const handleSwitcherOpenChange = (open) => {
+        setModuleSwitcherOpen(open);
+        if (open && isExpanded) setIsExpanded(false); // Binolar ochilsa minimap collapse
+    };
     
     // Dragging state
     const [isDragging, setIsDragging] = useState(false);
@@ -20,9 +32,7 @@ const MiniMap = ({ moduleSlug, currentScene, isLang, onSceneSelect }) => {
 
     const mapContainerRef = useRef(null);
     const wrapperRef = useRef(null);
-    const dropdownRef = useRef(null);
     const floorDropdownRef = useRef(null);
-    const navigate = useNavigate();
 
     // ─── Qavatlar va eski format uchun yordamchi ───────────────
     // Faqat rasmi bor (haqiqiy) qavatlarni ajratib olamiz
@@ -56,16 +66,8 @@ const MiniMap = ({ moduleSlug, currentScene, isLang, onSceneSelect }) => {
         return null;
     };
 
-    // Modullarni va joriy minimapni yuklash
+    // Joriy minimapni yuklash
     useEffect(() => {
-        // Modullarni olish
-        modulesAPI.getAll()
-            .then(res => {
-                setModules(res.data?.data || res.data || []);
-            })
-            .catch(err => console.error("Modullarni yuklashda xato:", err));
-
-        // Minimapni olish
         if (moduleSlug) {
             miniMapAPI.get(moduleSlug)
                 .then((res) => {
@@ -180,9 +182,6 @@ const MiniMap = ({ moduleSlug, currentScene, isLang, onSceneSelect }) => {
             if (isExpanded && wrapperRef.current && !wrapperRef.current.contains(e.target)) {
                 setIsExpanded(false);
             }
-            if (isDropdownOpen && dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-                setIsDropdownOpen(false);
-            }
             if (isFloorDropdownOpen && floorDropdownRef.current && !floorDropdownRef.current.contains(e.target)) {
                 setIsFloorDropdownOpen(false);
             }
@@ -196,7 +195,7 @@ const MiniMap = ({ moduleSlug, currentScene, isLang, onSceneSelect }) => {
 
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isExpanded, isDropdownOpen, isFloorDropdownOpen, currentScene, currentFloorData]);
+    }, [isExpanded, isFloorDropdownOpen, currentScene, currentFloorData]);
 
     const onDragging = (e) => {
         if (!isDragging) return;
@@ -217,12 +216,6 @@ const MiniMap = ({ moduleSlug, currentScene, isLang, onSceneSelect }) => {
 
         container.scrollLeft = Math.max(0, Math.min(scrollLeft - walkX, maxScrollLeft));
         container.scrollTop = Math.max(0, Math.min(scrollTop - walkY, maxScrollTop));
-    };
-
-    const getModuleName = (mod) => {
-        if (!mod || !mod.name) return mod?.slug || '';
-        if (typeof mod.name === 'string') return mod.name;
-        return mod.name[isLang] || mod.name.uz || mod.name.ru || mod.name.en || mod.slug;
     };
 
     const getFloorLabel = (floor) => {
@@ -257,63 +250,33 @@ const MiniMap = ({ moduleSlug, currentScene, isLang, onSceneSelect }) => {
         }
     };
 
-    const currentModule = modules.find(m => m.slug === moduleSlug);
-
     // Xarita rasmi bor-yo'qligini tekshirish
     const hasMapImage = currentFloorData?.image;
 
     return (
         <div
             ref={wrapperRef}
-            className={`minimap-wrapper ${isExpanded && hasMapImage ? 'expanded' : ''}`}
+            className={`minimap-wrapper ${isExpanded && hasMapImage ? 'expanded' : ''} ${isFloorDropdownOpen ? 'is-menu-open' : ''}`}
             style={{
                 '--map-ratio': currentFloorData?.height
                     ? `${currentFloorData.width} / ${currentFloorData.height}`
                     : '16 / 9'
             }}
         >
-            {/* Modul tanlash Dropdown */}
-            {modules.length > 1 && (
-                <div className="minimap-module-dropdown" ref={dropdownRef}>
-                    <div 
-                        className={`minimap-module-current ${isDropdownOpen ? 'open' : ''}`}
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    >
-                        <span>{currentModule ? getModuleName(currentModule) : 'Modul tanlang'}</span>
-                        <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <polyline points="6 9 12 15 18 9" />
-                        </svg>
-                    </div>
-                    
-                    <div className={`minimap-module-list ${isDropdownOpen ? 'open' : ''}`}>
-                        {modules.map(mod => (
-                            <div 
-                                key={mod.slug}
-                                className={`minimap-module-item ${mod.slug === moduleSlug ? 'active' : ''}`}
-                                onClick={() => {
-                                    setIsDropdownOpen(false);
-                                    if (mod.slug !== moduleSlug) {
-                                        navigate(`/${mod.slug}`);
-                                    }
-                                }}
-                            >
-                                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
-                                    <circle cx="12" cy="10" r="3" />
-                                </svg>
-                                {getModuleName(mod)}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+            {/* Modul almashtirish — yangi ModuleSwitcher (mobil: tepada, desktop: o'ng tomonda) */}
+            <ModuleSwitcher
+                currentModuleSlug={moduleSlug}
+                isLang={isLang}
+                isOpen={moduleSwitcherOpen}
+                onOpenChange={handleSwitcherOpenChange}
+            />
 
             {/* Ochildi/Yopildi tugmasi va Qavat tanlash */}
             {hasMapImage && (
                 <div className="minimap-actions-row" style={{ display: 'flex', gap: '8px' }}>
                     <button
                         className="minimap-toggle-btn"
-                        onClick={() => setIsExpanded(!isExpanded)}
+                        onClick={handleExpandClick}
                         title="Xaritani ochish/yopish"
                     >
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

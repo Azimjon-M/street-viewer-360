@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams, useNavigate, useLocation } from 'react-router-dom';
 
 // 360° Viewer
 import PanoramaViewer from './components/PanoramaViewer';
@@ -57,8 +57,11 @@ function HomePage() {
 
 // ── Main 360° Viewer (module-scoped) ────────────────────────────────
 function ViewerApp() {
-  const { moduleSlug } = useParams();
+  const { moduleSlug, sceneId: urlSceneId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [scenes, setScenes] = useState([]);
+  const [crossModuleScenes, setCrossModuleScenes] = useState({}); // { 'modSlug/sceneId': sceneObj }
   const [currentScene, setCurrentScene] = useState(null);
   const [customYaw, setCustomYaw] = useState(null);
   const [customPitch, setCustomPitch] = useState(null);
@@ -87,6 +90,7 @@ function ViewerApp() {
         const data = res.data?.data || res.data || [];
         setScenes(data);
         if (data.length > 0) {
+          // Prioritet: 1) URL dan sceneId  2) sessionStorage  3) initialScene  4) birinchi sahna
           const storageKey = `viewerState_${moduleSlug}`;
           const savedStateStr = sessionStorage.getItem(storageKey);
           let savedState = null;
@@ -94,17 +98,62 @@ function ViewerApp() {
             savedState = savedStateStr ? JSON.parse(savedStateStr) : null;
           } catch(e) {}
 
+          // 1) URL'dagi sceneId
+          if (urlSceneId) {
+            const fromUrl = data.find(s => s.id === urlSceneId);
+            if (fromUrl) {
+              setCurrentScene(fromUrl);
+
+              // 1a) Cross-module navigatsiyadan kelgan trueHeading bo'lsa — yaw/pitch/hfov ni qo'llaymiz
+              const incomingState = location.state;
+              if (incomingState && incomingState.trueHeading !== undefined && incomingState.trueHeading !== null) {
+                const nextNorthOffset = fromUrl.northOffset || 0;
+                let finalYaw = incomingState.trueHeading + nextNorthOffset;
+                while (finalYaw > 180) finalYaw -= 360;
+                while (finalYaw < -180) finalYaw += 360;
+                setCustomYaw(finalYaw);
+                if (incomingState.currentPitch !== null && incomingState.currentPitch !== undefined) {
+                  setCustomPitch(incomingState.currentPitch);
+                }
+                if (incomingState.currentHfov !== null && incomingState.currentHfov !== undefined) {
+                  setCustomHfov(incomingState.currentHfov);
+                }
+                // State ni iste'mol qildik — tozalaymiz (refreshda qayta qo'llanmasligi uchun)
+                navigate(`/${moduleSlug}/${urlSceneId}`, { replace: true, state: null });
+              }
+              // 1b) Aks holda saqlangan yaw/pitch ni qo'llaymiz (agar shu sahna uchun bo'lsa)
+              else if (savedState && savedState.sceneId === urlSceneId) {
+                setCustomYaw(savedState.yaw);
+                setCustomPitch(savedState.pitch);
+                setCustomHfov(savedState.hfov);
+              }
+              setLoading(false);
+              isInitialMount.current = false;
+              return;
+            }
+            // Topilmasa — URL ni tozalab default ga o'tamiz
+            navigate(`/${moduleSlug}`, { replace: true });
+          }
+
+          // 2) sessionStorage (initial mount va URL bo'sh bo'lsa)
           if (isInitialMount.current && savedState && data.some(s => s.id === savedState.sceneId)) {
-            setCurrentScene(data.find(s => s.id === savedState.sceneId));
+            const restored = data.find(s => s.id === savedState.sceneId);
+            setCurrentScene(restored);
             setCustomYaw(savedState.yaw);
             setCustomPitch(savedState.pitch);
             setCustomHfov(savedState.hfov);
+            // URL ni saqlangan sahnaga sinxronlash
+            navigate(`/${moduleSlug}/${restored.id}`, { replace: true });
           } else {
+            // 3) initialScene  4) birinchi
             const defaultScene = data.find(s => s.initialScene && typeof s.initialScene === 'object') || data[0];
             setCurrentScene(defaultScene);
             setCustomYaw(null);
             setCustomPitch(null);
             setCustomHfov(null);
+            if (defaultScene) {
+              navigate(`/${moduleSlug}/${defaultScene.id}`, { replace: true });
+            }
           }
         }
       })
@@ -115,7 +164,56 @@ function ViewerApp() {
         setLoading(false);
         isInitialMount.current = false;
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [moduleSlug]);
+
+  // URL'da sceneId qo'lda o'zgarsa (back/forward yoki manual) — currentScene ni sinxronlash
+  useEffect(() => {
+    if (loading || !urlSceneId || !scenes.length) return;
+    if (currentScene && currentScene.id === urlSceneId) return;
+    const target = scenes.find(s => s.id === urlSceneId);
+    if (target && target.id !== currentScene?.id) {
+      setCurrentScene(target);
+      setCustomYaw(null);
+      setCustomPitch(null);
+      setCustomHfov(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlSceneId, scenes, loading]);
+
+  // Cross-module pinlardagi target sahnalarning ma'lumotini oldindan yuklash
+  // (tooltip'da target title'ni ko'rsatish uchun)
+  useEffect(() => {
+    if (!scenes.length) return;
+    const otherSlugs = new Set();
+    scenes.forEach((scene) => {
+      scene.pins?.forEach((pin) => {
+        if (pin.targetModule && pin.targetModule !== moduleSlug && pin.target) {
+          otherSlugs.add(pin.targetModule);
+        }
+      });
+    });
+    if (otherSlugs.size === 0) {
+      setCrossModuleScenes({});
+      return;
+    }
+    let cancelled = false;
+    Promise.all(
+      Array.from(otherSlugs).map((slug) =>
+        scenesAPI.getAll(slug)
+          .then((res) => ({ slug, list: res.data?.data || res.data || [] }))
+          .catch(() => ({ slug, list: [] }))
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      const map = {};
+      results.forEach(({ slug, list }) => {
+        list.forEach((s) => { map[`${slug}/${s.id}`] = s; });
+      });
+      setCrossModuleScenes(map);
+    });
+    return () => { cancelled = true; };
+  }, [scenes, moduleSlug]);
 
   // Viewerni joriy holatini sessionStorage ga muntazam saqlab borish
   useEffect(() => {
@@ -144,7 +242,15 @@ function ViewerApp() {
     };
   }, [currentScene, moduleSlug]);
 
-  const handleSceneChange = (targetValue, trueHeading = null, currentHfov = null, currentPitch = null) => {
+  const handleSceneChange = (targetValue, trueHeading = null, currentHfov = null, currentPitch = null, targetModule = null) => {
+    // Cross-module: agar pin boshqa modulga ishora qilsa — boshqa URL ga navigate
+    if (targetModule && targetModule !== moduleSlug) {
+      navigate(`/${targetModule}/${targetValue}`, {
+        state: { trueHeading, currentPitch, currentHfov },
+      });
+      return;
+    }
+
     let targetScene = scenes.find(scene => scene.id === targetValue);
     if (!targetScene) {
       targetScene = scenes.find(scene => {
@@ -170,6 +276,12 @@ function ViewerApp() {
         setCustomHfov(null);
       }
       setCurrentScene(targetScene);
+
+      // URL ni sinxronlash (history ni isitmaslik uchun replace)
+      const desiredPath = `/${moduleSlug}/${targetScene.id}`;
+      if (location.pathname !== desiredPath) {
+        navigate(desiredPath, { replace: true });
+      }
     } else {
       console.error(`Sahnaga o'tishda xato: "${targetValue}" ID li sahna topilmadi!`);
       alert(`Xatolik: "${targetValue}" ID li sahna mavjud emas yoki o'chirib yuborilgan. Iltimos Admin paneldan minimap sozlamalarini (Default Scene yoki pinlarni) tekshiring.`);
@@ -201,6 +313,7 @@ function ViewerApp() {
         ref={viewerRef}
         sceneData={currentScene}
         allScenes={scenes}
+        crossModuleScenes={crossModuleScenes}
         initialYaw={customYaw}
         initialPitch={customPitch}
         initialHfov={customHfov}
@@ -229,8 +342,9 @@ function App() {
       {/* Bosh sahifa → birinchi modulga redirect */}
       <Route path="/" element={<HomePage />} />
 
-      {/* 360° Viewer — module-scoped */}
+      {/* 360° Viewer — module-scoped (sceneId ixtiyoriy, URL orqali ulashish uchun) */}
       <Route path="/:moduleSlug" element={<ViewerApp />} />
+      <Route path="/:moduleSlug/:sceneId" element={<ViewerApp />} />
 
       {/* Admin Login */}
       <Route path="/admin/login" element={<LoginPage />} />

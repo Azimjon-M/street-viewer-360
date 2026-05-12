@@ -56,6 +56,10 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  /* Mobil brauzerlarda tugmaga bosilganda border-radius'ni hisobga olmaydigan
+     ko'k tap highlight'ni o'chirish — o'rniga komponentning o'z :active style'i ishlaydi */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
 
 html,

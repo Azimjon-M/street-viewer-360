@@ -321,10 +321,10 @@ const ModuleFormPage = () => {
                             </div>
                             
                             {form.thumbnail && (
-                                <div style={{ 
-                                    width: '200px', 
-                                    height: '150px', 
-                                    borderRadius: '12px', 
+                                <div style={{
+                                    width: '200px',
+                                    height: '150px',
+                                    borderRadius: '12px',
                                     overflow: 'hidden',
                                     border: '2px solid rgba(255, 255, 255, 0.1)',
                                     boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
@@ -334,12 +334,60 @@ const ModuleFormPage = () => {
                                     <div style={{ position: 'absolute', top: '5px', left: '5px', background: 'rgba(0,0,0,0.6)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', zIndex: 1 }}>
                                         Oldindan ko'rish
                                     </div>
-                                    <img 
-                                        src={resolveImageUrl(form.thumbnail)} 
-                                        alt="Thumbnail preview" 
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (window.confirm("Modul rasmini o'chirmoqchimisiz? Bo'shatilgach, ushbu modul switcheri default sahna rasmidan foydalanadi. Saqlangandan so'ng faqat o'zgarish kuchga kiradi.")) {
+                                                handleChange('thumbnail', '');
+                                            }
+                                        }}
+                                        title="Rasmni o'chirish"
+                                        style={{
+                                            position: 'absolute',
+                                            top: '5px',
+                                            right: '5px',
+                                            width: '28px',
+                                            height: '28px',
+                                            borderRadius: '50%',
+                                            border: 'none',
+                                            background: 'rgba(220, 38, 38, 0.9)',
+                                            color: '#fff',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            zIndex: 2,
+                                            boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                                            transition: 'background 0.15s, transform 0.15s',
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.background = '#dc2626'; e.currentTarget.style.transform = 'scale(1.08)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(220, 38, 38, 0.9)'; e.currentTarget.style.transform = 'scale(1)'; }}
+                                    >
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                            <line x1="18" y1="6" x2="6" y2="18" />
+                                            <line x1="6" y1="6" x2="18" y2="18" />
+                                        </svg>
+                                    </button>
+                                    <img
+                                        src={resolveImageUrl(form.thumbnail)}
+                                        alt="Thumbnail preview"
                                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                         onError={(e) => { e.target.src = 'https://via.placeholder.com/200x150?text=Xato'; }}
                                     />
+                                </div>
+                            )}
+                            {!form.thumbnail && isEdit && (
+                                <div style={{
+                                    flex: '1 1 300px',
+                                    fontSize: '0.85rem',
+                                    color: 'var(--color-text-muted, #9ca3af)',
+                                    background: 'rgba(99, 102, 241, 0.06)',
+                                    border: '1px dashed rgba(99, 102, 241, 0.3)',
+                                    borderRadius: '10px',
+                                    padding: '12px 14px',
+                                    lineHeight: 1.5,
+                                }}>
+                                    💡 Modul rasmi belgilangan emas. Modul ro'yxatida (Binolar) ushbu modulning <strong>default sahnasidan</strong> avtomatik thumb olinadi.
                                 </div>
                             )}
                         </div>

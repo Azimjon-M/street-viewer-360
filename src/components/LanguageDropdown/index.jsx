@@ -69,7 +69,7 @@ const LanguageDropdown = ({ isLang, setIsLang }) => {
     }, []);
 
     return (
-        <div ref={dropdownRef} className="lang-dropdown-container">
+        <div ref={dropdownRef} className={`lang-dropdown-container ${isOpen ? 'is-open' : ''}`}>
             {/* Dropdown tugmasi */}
             <button
                 className="lang-dropdown-btn"
@@ -87,24 +87,23 @@ const LanguageDropdown = ({ isLang, setIsLang }) => {
                 </svg>
             </button>
 
-            {/* Dropdown menyusi */}
-            {isOpen && (
-                <ul className="lang-dropdown-menu">
-                    {availableLanguages.map((lang) => (
-                        <li key={lang.code}>
-                            <button
-                                className="lang-dropdown-item"
-                                onClick={() => handleToggleLang(lang.code)}
-                            >
-                                <div className="lang-flag-circle">
-                                    {lang.icon}
-                                </div>
-                                <span>{lang.label}</span>
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-            )}
+            {/* Dropdown menyusi — har doim render, animatsiya CSS orqali */}
+            <ul className="lang-dropdown-menu" aria-hidden={!isOpen}>
+                {availableLanguages.map((lang) => (
+                    <li key={lang.code}>
+                        <button
+                            className="lang-dropdown-item"
+                            onClick={() => handleToggleLang(lang.code)}
+                            tabIndex={isOpen ? 0 : -1}
+                        >
+                            <div className="lang-flag-circle">
+                                {lang.icon}
+                            </div>
+                            <span>{lang.label}</span>
+                        </button>
+                    </li>
+                ))}
+            </ul>
         </div>
     );
 };

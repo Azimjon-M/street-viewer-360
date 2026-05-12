@@ -1,0 +1,346 @@
+/* ─── Module Switcher ─────────────────────────────────────────── */
+/*
+ * Mobil (default): minimap-wrapper ichida flex-column flow'da, minimap tepasida
+ * Desktop (>768px): absolute, minimap-wrapper'ning o'ng tomonida
+ */
+
+.module-switcher {
+    position: relative;
+    z-index: 1010;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* ─── Trigger button ─── */
+.module-switcher-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 12px;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 10px;
+    color: #1f2937;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+    white-space: nowrap;
+}
+
+.module-switcher-btn:hover {
+    background: #ffffff;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+.module-switcher-btn:active {
+    transform: translateY(0);
+}
+
+.module-switcher-icon {
+    display: flex;
+    align-items: center;
+    color: #4f46e5;
+    flex-shrink: 0;
+}
+
+.module-switcher-label {
+    flex: 1;
+    text-align: left;
+    /* Animatsiya — ochilganda yashirinishi uchun */
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 100px;
+    opacity: 1;
+    transition: max-width 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, margin 0.25s ease;
+}
+
+/* Ochilganda label yashirinadi — menu kengroq joy oladi */
+.module-switcher.is-open .module-switcher-label {
+    max-width: 0;
+    opacity: 0;
+    margin-right: -8px;
+    /* gap kompensatsiyasi */
+}
+
+.module-switcher-chevron {
+    display: flex;
+    align-items: center;
+    color: #6b7280;
+    flex-shrink: 0;
+    /* Default (mobile): closed → UP (menyu tepaga ochiladi) */
+    transform: rotate(180deg);
+    transition: transform 0.25s ease;
+}
+
+/* Mobile open: chevron pastga */
+.module-switcher.is-open .module-switcher-chevron {
+    transform: rotate(0deg);
+}
+
+/* ─── Dropdown menu ─── */
+.module-switcher-menu {
+    position: absolute;
+    width: 280px;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 14px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+    padding: 6px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Yopiq holat */
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+    transition:
+        max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+        opacity 0.2s ease,
+        transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+        padding 0.2s ease;
+    /* Drag-to-scroll uchun grab cursor */
+    cursor: grab;
+    /* Scrollbarni yashirish — border-radius'dan tashqariga chiqib ketmasin */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    /* Touch'da brauzerning default scroll'iga drag halaqit qilmasin */
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+}
+
+.module-switcher-menu::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+/* Ochiq holat: kartochka yarmi ko'rinishi uchun (scroll affordance) */
+.module-switcher.is-open .module-switcher-menu {
+    /* Mobile: ~4.5 ta kartochka balandligi (74×4.5 + 12 padding ≈ 345px) */
+    max-height: min(70vh, 345px);
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+/* ─── Module item ─── */
+.module-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 8px 10px;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s;
+    color: #1f2937;
+    font-family: inherit;
+}
+
+.module-item + .module-item {
+    margin-top: 2px;
+}
+
+.module-item:hover {
+    background: rgba(99, 102, 241, 0.08);
+}
+
+.module-item.active {
+    background: rgba(99, 102, 241, 0.15);
+}
+
+.module-item.active .module-name {
+    color: #4f46e5;
+    font-weight: 700;
+}
+
+.module-thumb {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.module-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.module-info {
+    flex: 1;
+    min-width: 0;
+    /* Uzun nomlar uchun */
+}
+
+.module-name {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1f2937;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.module-active-mark {
+    color: #4f46e5;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+}
+
+/* ─── Ochilganda yuqori z-index (boshqa UI ustida turishi uchun) ─── */
+.module-switcher.is-open {
+    z-index: 9000;
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/*           DESKTOP: minimap o'ng tomonida + menu o'ngga ochiladi  */
+/*           Kartochkalar yon-yon, rasm tepada / title pastda       */
+/* ═══════════════════════════════════════════════════════════════ */
+@media (min-width: 769px) {
+    .module-switcher {
+        position: absolute;
+        bottom: 0;
+        left: calc(100% + 10px);
+    }
+
+    /* Chevron: yopiq → o'ngga (menyu o'ngga ochiladi), ochiq → chapga */
+    .module-switcher-chevron {
+        transform: rotate(-90deg);
+    }
+    .module-switcher.is-open .module-switcher-chevron {
+        transform: rotate(90deg);
+    }
+
+    /* Menu — tugma o'ng tomonida, gorizontal qator */
+    .module-switcher-menu {
+        bottom: 0;
+        left: calc(100% + 8px);
+        top: auto;
+        right: auto;
+        /* Gorizontal flex: kartochkalar yon-yon */
+        display: flex;
+        flex-direction: row;
+        gap: 8px;
+        padding: 10px;
+        /* Kenglik: max 7.5 kartochka (140×7.5 + gap×7 + 20 padding ≈ 1130px),
+           lekin viewport'ga moslab cheklanadi.
+           Menu chap tarafida ≈332px (minimap+tugma) joy egallangan.
+           O'ng tarafida F11 (fullscreen) tugmasi (≈64px) bor — uni qoplab qolmaslik uchun
+           qo'shimcha 60px buffer bilan: 100vw - 460px. */
+        width: auto;
+        max-width: min(calc(100vw - 460px), 1130px);
+        /* Yopiq holatda kichik shift (animatsiya uchun) */
+        transform: translateX(-8px);
+        /* Gorizontal scroll (modullar ko'p bo'lsa) */
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .module-switcher.is-open .module-switcher-menu {
+        transform: translateX(0);
+        /* Gorizontal layout — bitta qator kartochkalar uchun fixed balandlik */
+        max-height: 220px;
+    }
+
+    /* Kartochka: vertikal flex (rasm tepada, title pastda) */
+    .module-item {
+        flex-direction: column;
+        align-items: stretch;
+        flex-shrink: 0;
+        width: 140px;
+        padding: 8px;
+        gap: 8px;
+        position: relative;
+    }
+
+    .module-item + .module-item {
+        margin-top: 0;
+    }
+
+    .module-thumb {
+        width: 100%;
+        height: 90px;
+        border-radius: 8px;
+    }
+
+    .module-info {
+        width: 100%;
+        text-align: center;
+    }
+
+    .module-name {
+        text-align: center;
+        font-size: 0.82rem;
+        line-height: 1.25;
+    }
+
+    /* Aktiv belgi — kartochka tepa-o'ngiga */
+    .module-active-mark {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: #ffffff;
+        border-radius: 50%;
+        padding: 3px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Gorizontal scrollbar yashiringan (drag bilan suriladi) */
+    .module-switcher-menu::-webkit-scrollbar {
+        height: 0;
+        width: 0;
+        display: none;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/*    MOBILE: minimap tepasida (joriy joyida) + menu tepaga ochiladi */
+/* ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .module-switcher {
+        position: relative;
+        margin-bottom: 8px;
+    }
+
+    .module-switcher-menu {
+        bottom: calc(100% + 8px);
+        left: 0;
+        right: auto;
+        top: auto;
+        width: min(280px, calc(100vw - 40px));
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/*                    Telefon landshaft (kichik balandlik)          */
+/* ═══════════════════════════════════════════════════════════════ */
+@media (max-height: 500px) and (orientation: landscape) {
+    .module-switcher.is-open .module-switcher-menu {
+        max-height: 75vh;
+    }
+}

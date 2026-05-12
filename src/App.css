@@ -6,3 +6,25 @@
   overflow: hidden;
   position: relative;
 }
+
+/* ─── Viewer immersive (mobil "fake fullscreen") rejimi ───────────────────
+ * F11 tugmasi bosilganda mobilda native fullscreen ishlamagani uchun
+ * tashqi UI elementlarini yashirib, faqat viewer va asosiy controlllar qoladi.
+ * Ko'rinib qoladigan: panorama, "i" tugma, Sifat tugma, Fullscreen tugma.
+ * Yashirilgan: Til dropdown, Compass, MiniMap (ModuleSwitcher ham minimap ichida).
+ */
+
+/* Fade in/out transitions — LanguageDropdown va Compass uchun
+   (MiniMap'da `transition: all` allaqachon mavjud) */
+.lang-dropdown-container,
+.compass-wrapper {
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+body.viewer-immersive .lang-dropdown-container,
+body.viewer-immersive .compass-wrapper,
+body.viewer-immersive .minimap-wrapper {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
